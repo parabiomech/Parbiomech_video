@@ -98,10 +98,10 @@ def process_video(video_file, confidence_threshold=0.5, filter_strength=5):
     progress_bar = st.progress(0)
     status_text = st.empty()
     
-    # MediaPipe Pose 초기화
+    # MediaPipe Pose 초기화 (model_complexity=1로 변경하여 권한 문제 회피)
     with mp_pose.Pose(
         static_image_mode=False,
-        model_complexity=2,
+        model_complexity=1,
         min_detection_confidence=confidence_threshold,
         min_tracking_confidence=confidence_threshold
     ) as pose:
