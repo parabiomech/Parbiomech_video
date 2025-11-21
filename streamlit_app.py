@@ -90,14 +90,10 @@ def process_video(video_file, confidence_threshold=0.5, filter_strength=5):
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     
-    # 출력 비디오 설정 (H.264 코덱 사용)
-    output_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-    fourcc = cv2.VideoWriter_fourcc(*'avc1')  # H.264 코덱
-    out = cv2.VideoWriter(output_file.name, fourcc, fps, (width, height))
-    
     # 결과 저장을 위한 리스트
     tracking_data = []
     angle_data = []
+    processed_frames = []  # 프레임을 메모리에 저장
     
     # 진행 상황 표시
     progress_bar = st.progress(0)
@@ -135,8 +131,8 @@ def process_video(video_file, confidence_threshold=0.5, filter_strength=5):
                     landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style()
                 )
             
-            # 프레임을 출력 비디오에 저장
-            out.write(annotated_frame)
+            # 프레임을 리스트에 저장
+            processed_frames.append(annotated_frame)
             
             if results.pose_landmarks:
                 landmarks = results.pose_landmarks.landmark
@@ -208,8 +204,17 @@ def process_video(video_file, confidence_threshold=0.5, filter_strength=5):
             status_text.text(f"처리 중: {frame_num}/{total_frames} 프레임")
     
     cap.release()
-    out.release()
     os.unlink(tfile.name)
+    
+    # 프레임을 비디오 파일로 저장
+    output_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(output_file.name, fourcc, fps, (width, height))
+    
+    for frame in processed_frames:
+        out.write(frame)
+    
+    out.release()
     
     progress_bar.empty()
     status_text.empty()
