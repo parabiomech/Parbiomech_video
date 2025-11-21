@@ -275,6 +275,23 @@ uploaded_file = st.file_uploader(
 if uploaded_file is not None:
     st.success(f"✅ 파일 업로드 완료: {uploaded_file.name}")
     
+    # 원본 비디오 표시
+    st.markdown("---")
+    st.header("📹 원본 비디오")
+    
+    # 비디오 파일을 바이트로 읽기 (재사용을 위해 세션에 저장)
+    if 'original_video_bytes' not in st.session_state or st.session_state.get('last_uploaded_file') != uploaded_file.name:
+        video_bytes = uploaded_file.read()
+        st.session_state['original_video_bytes'] = video_bytes
+        st.session_state['last_uploaded_file'] = uploaded_file.name
+        # 파일 포인터를 처음으로 되돌림
+        uploaded_file.seek(0)
+    
+    # 원본 비디오 표시
+    st.video(st.session_state['original_video_bytes'])
+    
+    st.markdown("---")
+    
     col1, col2 = st.columns([1, 4])
     
     with col1:
@@ -313,10 +330,10 @@ if 'df_tracking' in st.session_state and 'df_angles' in st.session_state:
         st.metric("분석 시간", f"{len(df_tracking) / st.session_state['fps']:.2f}초")
     
     # 탭으로 결과 구분
-    tab1, tab2, tab3, tab4 = st.tabs(["🎥 포즈 비디오", "📈 관절 각도", "📍 키포인트 데이터", "💾 다운로드"])
+    tab1, tab2, tab3, tab4 = st.tabs(["🎥 분석 결과 비디오", "📈 관절 각도", "📍 궤적 분석", "💾 다운로드"])
     
     with tab1:
-        st.subheader("포즈 감지 결과 비디오")
+        st.subheader("포즈 스켈레톤 감지 결과")
         
         if 'output_video_path' in st.session_state:
             # 비디오 파일 읽기
@@ -329,18 +346,24 @@ if 'df_tracking' in st.session_state and 'df_angles' in st.session_state:
                 # 비디오 표시
                 st.video(video_bytes)
                 
-                # 다운로드 버튼
-                st.download_button(
-                    label="📥 포즈 비디오 다운로드",
-                    data=video_bytes,
-                    file_name="pose_analysis_video.mp4",
-                    mime="video/mp4",
-                    use_container_width=True
-                )
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # 비디오 다운로드 버튼
+                    st.download_button(
+                        label="📥 분석 비디오 다운로드",
+                        data=video_bytes,
+                        file_name="pose_analysis_video.mp4",
+                        mime="video/mp4",
+                        use_container_width=True
+                    )
+                
+                with col2:
+                    st.info(f"📊 비디오 정보: {st.session_state['video_info']}")
             else:
                 st.warning("비디오 파일을 찾을 수 없습니다.")
         else:
-            st.info("비디오 분석 결과가 없습니다.")
+            st.info("비디오 분석을 실행하면 결과가 여기에 표시됩니다.")
     
     with tab2:
         st.subheader("관절 각도 변화")
@@ -385,38 +408,45 @@ if 'df_tracking' in st.session_state and 'df_angles' in st.session_state:
             st.warning("각도 데이터가 없습니다.")
     
     with tab3:
-        st.subheader("키포인트 추적 데이터")
+        st.subheader("키포인트 궤적 분석")
         
-        # 키포인트 선택
+        # 키포인트 컬럼 추출
         keypoint_cols = [col for col in df_tracking.columns if col not in ['frame', 'time']]
         
         if keypoint_cols:
-            st.dataframe(df_tracking, use_container_width=True, height=400)
+            # 키포인트 선택
+            col1, col2 = st.columns([1, 3])
             
-            # 특정 키포인트의 궤적 시각화
-            st.subheader("키포인트 궤적")
-            
-            keypoints = list(set([col.rsplit('_', 1)[0] for col in keypoint_cols if '_x' in col or '_y' in col]))
-            selected_keypoint = st.selectbox("키포인트 선택", keypoints)
+            with col1:
+                keypoints = list(set([col.rsplit('_', 1)[0] for col in keypoint_cols if '_x' in col or '_y' in col]))
+                selected_keypoint = st.selectbox("키포인트 선택", keypoints)
             
             if selected_keypoint:
                 x_col = f"{selected_keypoint}_x"
                 y_col = f"{selected_keypoint}_y"
                 
                 if x_col in df_tracking.columns and y_col in df_tracking.columns:
+                    # 궤적 그래프
                     fig = go.Figure()
                     
                     fig.add_trace(go.Scatter(
                         x=df_tracking[x_col],
                         y=df_tracking[y_col],
                         mode='lines+markers',
-                        name=selected_keypoint,
-                        marker=dict(size=4),
-                        line=dict(width=2)
+                        name=selected_keypoint.replace('_', ' ').title(),
+                        marker=dict(
+                            size=4,
+                            color=df_tracking['frame'],
+                            colorscale='Viridis',
+                            showscale=True,
+                            colorbar=dict(title="프레임")
+                        ),
+                        line=dict(width=2),
+                        hovertemplate='<b>프레임: %{marker.color}</b><br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
                     ))
                     
                     fig.update_layout(
-                        title=f"{selected_keypoint} 궤적",
+                        title=f"{selected_keypoint.replace('_', ' ').title()} 궤적",
                         xaxis_title="X 좌표",
                         yaxis_title="Y 좌표",
                         yaxis=dict(scaleanchor="x", scaleratio=1, autorange="reversed"),
@@ -424,6 +454,38 @@ if 'df_tracking' in st.session_state and 'df_angles' in st.session_state:
                     )
                     
                     st.plotly_chart(fig, use_container_width=True)
+                    
+                    # 시간별 좌표 변화
+                    st.subheader("시간별 좌표 변화")
+                    
+                    fig2 = make_subplots(
+                        rows=2, cols=1,
+                        subplot_titles=('X 좌표 변화', 'Y 좌표 변화'),
+                        vertical_spacing=0.1
+                    )
+                    
+                    fig2.add_trace(
+                        go.Scatter(x=df_tracking['time'], y=df_tracking[x_col], 
+                                   mode='lines', name='X', line=dict(color='blue')),
+                        row=1, col=1
+                    )
+                    
+                    fig2.add_trace(
+                        go.Scatter(x=df_tracking['time'], y=df_tracking[y_col], 
+                                   mode='lines', name='Y', line=dict(color='red')),
+                        row=2, col=1
+                    )
+                    
+                    fig2.update_xaxes(title_text="시간 (초)", row=2, col=1)
+                    fig2.update_yaxes(title_text="X 좌표", row=1, col=1)
+                    fig2.update_yaxes(title_text="Y 좌표", row=2, col=1)
+                    fig2.update_layout(height=600, showlegend=False)
+                    
+                    st.plotly_chart(fig2, use_container_width=True)
+                    
+                    # 키포인트 데이터 테이블
+                    st.subheader("📊 키포인트 데이터")
+                    st.dataframe(df_tracking, use_container_width=True, height=300)
         else:
             st.warning("키포인트 데이터가 없습니다.")
     
