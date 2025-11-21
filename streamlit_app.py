@@ -61,69 +61,6 @@ def calculate_angle(a, b, c):
         
     return angle
 
-def detect_events(df_angles, threshold_change=30):
-    """각도 변화를 기반으로 주요 시점 검출"""
-    events = []
-    
-    if len(df_angles) == 0:
-        return pd.DataFrame(events)
-    
-    angle_cols = [col for col in df_angles.columns if col not in ['frame', 'time']]
-    
-    for col in angle_cols:
-        if col in df_angles.columns:
-            values = df_angles[col].dropna().values
-            
-            if len(values) < 2:
-                continue
-            
-            # 각도 변화율 계산
-            changes = np.diff(values)
-            
-            # 최대/최소 각도 지점 찾기
-            max_idx = np.argmax(values)
-            min_idx = np.argmin(values)
-            
-            # 급격한 변화 지점 찾기
-            significant_changes = np.where(np.abs(changes) > threshold_change)[0]
-            
-            # 최대 각도 이벤트
-            if max_idx < len(df_angles):
-                events.append({
-                    'time': df_angles.iloc[max_idx]['time'],
-                    'frame': df_angles.iloc[max_idx]['frame'],
-                    'joint': col,
-                    'event_type': '최대 굴곡',
-                    'angle': values[max_idx]
-                })
-            
-            # 최소 각도 이벤트
-            if min_idx < len(df_angles):
-                events.append({
-                    'time': df_angles.iloc[min_idx]['time'],
-                    'frame': df_angles.iloc[min_idx]['frame'],
-                    'joint': col,
-                    'event_type': '최대 신전',
-                    'angle': values[min_idx]
-                })
-            
-            # 급격한 변화 이벤트
-            for change_idx in significant_changes[:3]:  # 최대 3개만
-                if change_idx < len(df_angles):
-                    events.append({
-                        'time': df_angles.iloc[change_idx]['time'],
-                        'frame': df_angles.iloc[change_idx]['frame'],
-                        'joint': col,
-                        'event_type': '급격한 변화',
-                        'angle': values[change_idx]
-                    })
-    
-    events_df = pd.DataFrame(events)
-    if len(events_df) > 0:
-        events_df = events_df.sort_values('time').reset_index(drop=True)
-    
-    return events_df
-
 def apply_lowpass_filter(data, strength=5):
     """로우패스 필터 적용"""
     if len(data) == 0:
@@ -153,9 +90,9 @@ def process_video(video_file, confidence_threshold=0.5, filter_strength=5):
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     
-    # 출력 비디오 설정
+    # 출력 비디오 설정 (H.264 코덱 사용)
     output_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    fourcc = cv2.VideoWriter_fourcc(*'avc1')  # H.264 코덱
     out = cv2.VideoWriter(output_file.name, fourcc, fps, (width, height))
     
     # 결과 저장을 위한 리스트
@@ -310,14 +247,6 @@ with st.sidebar:
         help="데이터 스무딩 정도 (0 = 필터 없음)"
     )
     
-    event_threshold = st.slider(
-        "이벤트 검출 민감도",
-        min_value=10,
-        max_value=50,
-        value=30,
-        help="각도 변화 임계값 (낮을수록 더 많은 이벤트 검출)"
-    )
-    
     st.markdown("---")
     st.markdown("""
     ### 📋 사용 방법
@@ -359,10 +288,6 @@ if uploaded_file is not None:
                 st.session_state['video_info'] = f"{width}x{height} @ {fps}fps"
                 st.session_state['output_video_path'] = output_video_path
                 
-                # 이벤트 검출
-                events_df = detect_events(df_angles)
-                st.session_state['events_df'] = events_df
-                
                 st.success("✅ 분석 완료!")
 
 # 결과 표시
@@ -383,7 +308,7 @@ if 'df_tracking' in st.session_state and 'df_angles' in st.session_state:
         st.metric("분석 시간", f"{len(df_tracking) / st.session_state['fps']:.2f}초")
     
     # 탭으로 결과 구분
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🎥 포즈 비디오", "📈 관절 각도", "⚡ 주요 시점", "📍 키포인트 데이터", "💾 다운로드"])
+    tab1, tab2, tab3, tab4 = st.tabs(["🎥 포즈 비디오", "📈 관절 각도", "📍 키포인트 데이터", "💾 다운로드"])
     
     with tab1:
         st.subheader("포즈 감지 결과 비디오")
@@ -437,22 +362,6 @@ if 'df_tracking' in st.session_state and 'df_angles' in st.session_state:
                         line=dict(width=2)
                     ))
                 
-                # 이벤트 마커 추가
-                if 'events_df' in st.session_state and len(st.session_state['events_df']) > 0:
-                    events_df = st.session_state['events_df']
-                    for angle in selected_angles:
-                        angle_events = events_df[events_df['joint'] == angle]
-                        if len(angle_events) > 0:
-                            fig.add_trace(go.Scatter(
-                                x=angle_events['time'],
-                                y=angle_events['angle'],
-                                mode='markers',
-                                name=f"{angle.replace('_', ' ').title()} 이벤트",
-                                marker=dict(size=10, symbol='star'),
-                                text=angle_events['event_type'],
-                                hovertemplate='<b>%{text}</b><br>시간: %{x:.2f}초<br>각도: %{y:.1f}°<extra></extra>'
-                            ))
-                
                 fig.update_layout(
                     title="관절 각도 변화",
                     xaxis_title="시간 (초)",
@@ -471,81 +380,6 @@ if 'df_tracking' in st.session_state and 'df_angles' in st.session_state:
             st.warning("각도 데이터가 없습니다.")
     
     with tab3:
-        st.subheader("⚡ 주요 시점 검출")
-        
-        if 'events_df' in st.session_state and len(st.session_state['events_df']) > 0:
-            events_df = st.session_state['events_df']
-            
-            # 이벤트 타입별 필터
-            event_types = ['전체'] + list(events_df['event_type'].unique())
-            selected_event_type = st.selectbox("이벤트 유형 선택", event_types)
-            
-            # 관절별 필터
-            joints = ['전체'] + list(events_df['joint'].unique())
-            selected_joint = st.selectbox("관절 선택", joints)
-            
-            # 필터링
-            filtered_events = events_df.copy()
-            if selected_event_type != '전체':
-                filtered_events = filtered_events[filtered_events['event_type'] == selected_event_type]
-            if selected_joint != '전체':
-                filtered_events = filtered_events[filtered_events['joint'] == selected_joint]
-            
-            # 이벤트 표시
-            st.dataframe(
-                filtered_events.style.format({
-                    'time': '{:.2f}초',
-                    'frame': '{:.0f}',
-                    'angle': '{:.1f}°'
-                }),
-                use_container_width=True,
-                height=400
-            )
-            
-            # 통계
-            st.subheader("📊 이벤트 통계")
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.metric("총 이벤트 수", len(events_df))
-            with col2:
-                st.metric("검출된 관절 수", events_df['joint'].nunique())
-            with col3:
-                st.metric("이벤트 유형 수", events_df['event_type'].nunique())
-            
-            # 타임라인 시각화
-            st.subheader("🕐 이벤트 타임라인")
-            
-            fig = go.Figure()
-            
-            for joint in events_df['joint'].unique():
-                joint_events = events_df[events_df['joint'] == joint]
-                fig.add_trace(go.Scatter(
-                    x=joint_events['time'],
-                    y=[joint] * len(joint_events),
-                    mode='markers+text',
-                    name=joint.replace('_', ' ').title(),
-                    marker=dict(size=15, symbol='diamond'),
-                    text=joint_events['event_type'],
-                    textposition='top center',
-                    hovertemplate='<b>%{text}</b><br>시간: %{x:.2f}초<br>각도: ' + 
-                                  joint_events['angle'].astype(str) + '°<extra></extra>'
-                ))
-            
-            fig.update_layout(
-                title="관절별 이벤트 타임라인",
-                xaxis_title="시간 (초)",
-                yaxis_title="관절",
-                height=400,
-                showlegend=True
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-            
-        else:
-            st.info("검출된 주요 시점이 없습니다.")
-    
-    with tab4:
         st.subheader("키포인트 추적 데이터")
         
         # 키포인트 선택
@@ -588,16 +422,16 @@ if 'df_tracking' in st.session_state and 'df_angles' in st.session_state:
         else:
             st.warning("키포인트 데이터가 없습니다.")
     
-    with tab5:
+    with tab4:
         st.subheader("데이터 다운로드")
         
-        col1, col2, col3 = st.columns(3)
+        col1, col2 = st.columns(2)
         
         with col1:
             # 키포인트 데이터 다운로드
             csv_tracking = df_tracking.to_csv(index=False).encode('utf-8')
             st.download_button(
-                label="📥 키포인트 데이터 (CSV)",
+                label="📥 키포인트 데이터 다운로드 (CSV)",
                 data=csv_tracking,
                 file_name="keypoint_tracking_data.csv",
                 mime="text/csv",
@@ -609,7 +443,7 @@ if 'df_tracking' in st.session_state and 'df_angles' in st.session_state:
             if len(df_angles) > 0:
                 csv_angles = df_angles.to_csv(index=False).encode('utf-8')
                 st.download_button(
-                    label="📥 각도 데이터 (CSV)",
+                    label="📥 각도 데이터 다운로드 (CSV)",
                     data=csv_angles,
                     file_name="angle_data.csv",
                     mime="text/csv",
@@ -617,20 +451,6 @@ if 'df_tracking' in st.session_state and 'df_angles' in st.session_state:
                 )
             else:
                 st.info("각도 데이터가 없습니다.")
-        
-        with col3:
-            # 이벤트 데이터 다운로드
-            if 'events_df' in st.session_state and len(st.session_state['events_df']) > 0:
-                csv_events = st.session_state['events_df'].to_csv(index=False).encode('utf-8')
-                st.download_button(
-                    label="📥 이벤트 데이터 (CSV)",
-                    data=csv_events,
-                    file_name="event_data.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
-            else:
-                st.info("이벤트 데이터가 없습니다.")
 
 else:
     st.info("👆 비디오 파일을 업로드하고 분석을 시작하세요.")
