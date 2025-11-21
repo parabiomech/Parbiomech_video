@@ -90,6 +90,11 @@ def process_video(video_file, confidence_threshold=0.5, filter_strength=5):
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     
+    # 출력 비디오 설정
+    output_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(output_file.name, fourcc, fps, (width, height))
+    
     # 결과 저장을 위한 리스트
     tracking_data = []
     angle_data = []
@@ -118,6 +123,20 @@ def process_video(video_file, confidence_threshold=0.5, filter_strength=5):
             
             # 포즈 감지
             results = pose.process(image_rgb)
+            
+            # 포즈 그리기
+            annotated_frame = frame.copy()
+            if results.pose_landmarks:
+                # 포즈 랜드마크 그리기
+                mp_drawing.draw_landmarks(
+                    annotated_frame,
+                    results.pose_landmarks,
+                    mp_pose.POSE_CONNECTIONS,
+                    landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style()
+                )
+            
+            # 프레임을 출력 비디오에 저장
+            out.write(annotated_frame)
             
             if results.pose_landmarks:
                 landmarks = results.pose_landmarks.landmark
@@ -189,6 +208,7 @@ def process_video(video_file, confidence_threshold=0.5, filter_strength=5):
             status_text.text(f"처리 중: {frame_num}/{total_frames} 프레임")
     
     cap.release()
+    out.release()
     os.unlink(tfile.name)
     
     progress_bar.empty()
@@ -204,7 +224,7 @@ def process_video(video_file, confidence_threshold=0.5, filter_strength=5):
             if col not in ['frame', 'time']:
                 df_angles[col] = apply_lowpass_filter(df_angles[col].values, filter_strength)
     
-    return df_tracking, df_angles, fps, width, height
+    return df_tracking, df_angles, fps, width, height, output_file.name
 
 # 사이드바 설정
 with st.sidebar:
@@ -255,7 +275,7 @@ if uploaded_file is not None:
     with col1:
         if st.button("🚀 분석 시작", type="primary", use_container_width=True):
             with st.spinner("비디오 처리 중..."):
-                df_tracking, df_angles, fps, width, height = process_video(
+                df_tracking, df_angles, fps, width, height, output_video_path = process_video(
                     uploaded_file,
                     confidence,
                     filter_strength
@@ -266,6 +286,7 @@ if uploaded_file is not None:
                 st.session_state['df_angles'] = df_angles
                 st.session_state['fps'] = fps
                 st.session_state['video_info'] = f"{width}x{height} @ {fps}fps"
+                st.session_state['output_video_path'] = output_video_path
                 
                 st.success("✅ 분석 완료!")
 
@@ -287,9 +308,31 @@ if 'df_tracking' in st.session_state and 'df_angles' in st.session_state:
         st.metric("분석 시간", f"{len(df_tracking) / st.session_state['fps']:.2f}초")
     
     # 탭으로 결과 구분
-    tab1, tab2, tab3 = st.tabs(["📈 관절 각도", "📍 키포인트 데이터", "💾 다운로드"])
+    tab1, tab2, tab3, tab4 = st.tabs(["🎥 포즈 비디오", "📈 관절 각도", "📍 키포인트 데이터", "💾 다운로드"])
     
     with tab1:
+        st.subheader("포즈 감지 결과 비디오")
+        
+        if 'output_video_path' in st.session_state:
+            # 비디오 파일 읽기
+            with open(st.session_state['output_video_path'], 'rb') as video_file:
+                video_bytes = video_file.read()
+            
+            # 비디오 표시
+            st.video(video_bytes)
+            
+            # 다운로드 버튼
+            st.download_button(
+                label="📥 포즈 비디오 다운로드",
+                data=video_bytes,
+                file_name="pose_analysis_video.mp4",
+                mime="video/mp4",
+                use_container_width=True
+            )
+        else:
+            st.info("비디오 분석 결과가 없습니다.")
+    
+    with tab2:
         st.subheader("관절 각도 변화")
         
         if len(df_angles) > 0:
@@ -331,7 +374,7 @@ if 'df_tracking' in st.session_state and 'df_angles' in st.session_state:
         else:
             st.warning("각도 데이터가 없습니다.")
     
-    with tab2:
+    with tab3:
         st.subheader("키포인트 추적 데이터")
         
         # 키포인트 선택
@@ -374,7 +417,7 @@ if 'df_tracking' in st.session_state and 'df_angles' in st.session_state:
         else:
             st.warning("키포인트 데이터가 없습니다.")
     
-    with tab3:
+    with tab4:
         st.subheader("데이터 다운로드")
         
         col1, col2 = st.columns(2)
