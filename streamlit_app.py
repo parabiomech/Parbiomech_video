@@ -8,6 +8,8 @@ from pathlib import Path
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from PIL import Image
+import io
 
 # MediaPipe 초기화
 mp_pose = mp.solutions.pose
@@ -60,6 +62,88 @@ def calculate_angle(a, b, c):
         angle = 360-angle
         
     return angle
+
+def analyze_frame_at_time(video_path, time_sec, pose_detector):
+    """특정 시점의 프레임 분석"""
+    cap = cv2.VideoCapture(video_path)
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    frame_num = int(time_sec * fps)
+    
+    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
+    ret, frame = cap.read()
+    cap.release()
+    
+    if not ret:
+        return None, None, None
+    
+    # RGB로 변환
+    image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    
+    # 포즈 감지
+    results = pose_detector.process(image_rgb)
+    
+    # 포즈 그리기
+    annotated_frame = frame.copy()
+    angles = {}
+    
+    if results.pose_landmarks:
+        # 포즈 랜드마크 그리기
+        mp_drawing.draw_landmarks(
+            annotated_frame,
+            results.pose_landmarks,
+            mp_pose.POSE_CONNECTIONS,
+            landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style()
+        )
+        
+        landmarks = results.pose_landmarks.landmark
+        
+        # 주요 각도 계산
+        # 왼쪽 팔꿈치
+        if all(landmarks[i].visibility > 0.5 for i in [11, 13, 15]):
+            shoulder = [landmarks[11].x, landmarks[11].y]
+            elbow = [landmarks[13].x, landmarks[13].y]
+            wrist = [landmarks[15].x, landmarks[15].y]
+            angles['왼쪽 팔꿈치'] = calculate_angle(shoulder, elbow, wrist)
+        
+        # 오른쪽 팔꿈치
+        if all(landmarks[i].visibility > 0.5 for i in [12, 14, 16]):
+            shoulder = [landmarks[12].x, landmarks[12].y]
+            elbow = [landmarks[14].x, landmarks[14].y]
+            wrist = [landmarks[16].x, landmarks[16].y]
+            angles['오른쪽 팔꿈치'] = calculate_angle(shoulder, elbow, wrist)
+        
+        # 왼쪽 무릎
+        if all(landmarks[i].visibility > 0.5 for i in [23, 25, 27]):
+            hip = [landmarks[23].x, landmarks[23].y]
+            knee = [landmarks[25].x, landmarks[25].y]
+            ankle = [landmarks[27].x, landmarks[27].y]
+            angles['왼쪽 무릎'] = calculate_angle(hip, knee, ankle)
+        
+        # 오른쪽 무릎
+        if all(landmarks[i].visibility > 0.5 for i in [24, 26, 28]):
+            hip = [landmarks[24].x, landmarks[24].y]
+            knee = [landmarks[26].x, landmarks[26].y]
+            ankle = [landmarks[28].x, landmarks[28].y]
+            angles['오른쪽 무릎'] = calculate_angle(hip, knee, ankle)
+        
+        # 왼쪽 고관절
+        if all(landmarks[i].visibility > 0.5 for i in [11, 23, 25]):
+            shoulder = [landmarks[11].x, landmarks[11].y]
+            hip = [landmarks[23].x, landmarks[23].y]
+            knee = [landmarks[25].x, landmarks[25].y]
+            angles['왼쪽 고관절'] = calculate_angle(shoulder, hip, knee)
+        
+        # 오른쪽 고관절
+        if all(landmarks[i].visibility > 0.5 for i in [12, 24, 26]):
+            shoulder = [landmarks[12].x, landmarks[12].y]
+            hip = [landmarks[24].x, landmarks[24].y]
+            knee = [landmarks[26].x, landmarks[26].y]
+            angles['오른쪽 고관절'] = calculate_angle(shoulder, hip, knee)
+    
+    # BGR to RGB for display
+    annotated_frame_rgb = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
+    
+    return annotated_frame_rgb, angles, results.pose_landmarks is not None
 
 def apply_lowpass_filter(data, strength=5):
     """로우패스 필터 적용"""
@@ -330,42 +414,243 @@ if 'df_tracking' in st.session_state and 'df_angles' in st.session_state:
         st.metric("분석 시간", f"{len(df_tracking) / st.session_state['fps']:.2f}초")
     
     # 탭으로 결과 구분
-    tab1, tab2, tab3, tab4 = st.tabs(["🎥 분석 결과 비디오", "📈 관절 각도", "📍 궤적 분석", "💾 다운로드"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🎥 분석 결과 비디오", "⏱️ 시점 분석", "📈 관절 각도", "📍 궤적 분석", "💾 다운로드"])
     
     with tab1:
         st.subheader("포즈 스켈레톤 감지 결과")
         
-        if 'output_video_path' in st.session_state:
-            # 비디오 파일 읽기
+        if 'output_video_path' in st.session_state and os.path.exists(st.session_state['output_video_path']):
             video_path = st.session_state['output_video_path']
             
-            if os.path.exists(video_path):
+            try:
                 with open(video_path, 'rb') as video_file:
                     video_bytes = video_file.read()
                 
-                # 비디오 표시
-                st.video(video_bytes)
-                
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    # 비디오 다운로드 버튼
-                    st.download_button(
-                        label="📥 분석 비디오 다운로드",
-                        data=video_bytes,
-                        file_name="pose_analysis_video.mp4",
-                        mime="video/mp4",
-                        use_container_width=True
-                    )
-                
-                with col2:
-                    st.info(f"📊 비디오 정보: {st.session_state['video_info']}")
-            else:
-                st.warning("비디오 파일을 찾을 수 없습니다.")
+                if len(video_bytes) > 0:
+                    # 비디오 표시
+                    st.video(video_bytes)
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        # 비디오 다운로드 버튼
+                        st.download_button(
+                            label="📥 분석 비디오 다운로드",
+                            data=video_bytes,
+                            file_name="pose_analysis_video.mp4",
+                            mime="video/mp4",
+                            use_container_width=True
+                        )
+                    
+                    with col2:
+                        st.info(f"📊 비디오 정보: {st.session_state['video_info']}")
+                else:
+                    st.error("비디오 파일이 비어있습니다. 다시 분석해주세요.")
+            except Exception as e:
+                st.error(f"비디오 로드 중 오류: {str(e)}")
+                st.info("다시 분석을 시도해주세요.")
         else:
             st.info("비디오 분석을 실행하면 결과가 여기에 표시됩니다.")
+            if 'output_video_path' in st.session_state:
+                st.warning(f"파일 경로: {st.session_state.get('output_video_path', 'N/A')}")
+                st.warning("파일이 존재하지 않습니다. 분석을 다시 실행해주세요.")
     
     with tab2:
+        st.subheader("⏱️ 시점별 동작 분석")
+        
+        if 'original_video_bytes' in st.session_state and 'df_tracking' in st.session_state:
+            # 비디오를 임시 파일로 저장
+            temp_video = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+            temp_video.write(st.session_state['original_video_bytes'])
+            temp_video.close()
+            
+            # 비디오 정보
+            total_time = len(st.session_state['df_tracking']) / st.session_state['fps']
+            
+            st.info(f"📹 비디오 길이: {total_time:.2f}초")
+            
+            # 시점 입력 섹션
+            st.markdown("### 시점 지정")
+            
+            col1, col2 = st.columns([3, 1])
+            
+            with col1:
+                # 시점 추가 방법 선택
+                method = st.radio(
+                    "시점 지정 방법",
+                    ["슬라이더로 선택", "직접 입력"],
+                    horizontal=True
+                )
+            
+            # 시점 리스트 초기화
+            if 'timepoints' not in st.session_state:
+                st.session_state['timepoints'] = []
+            
+            if method == "슬라이더로 선택":
+                selected_time = st.slider(
+                    "시점 선택 (초)",
+                    min_value=0.0,
+                    max_value=total_time,
+                    value=0.0,
+                    step=0.1
+                )
+            else:
+                selected_time = st.number_input(
+                    "시점 입력 (초)",
+                    min_value=0.0,
+                    max_value=total_time,
+                    value=0.0,
+                    step=0.1
+                )
+            
+            col1, col2, col3 = st.columns([1, 1, 2])
+            
+            with col1:
+                if st.button("➕ 시점 추가", use_container_width=True):
+                    if selected_time not in st.session_state['timepoints']:
+                        st.session_state['timepoints'].append(selected_time)
+                        st.session_state['timepoints'].sort()
+                        st.success(f"시점 {selected_time:.2f}초 추가됨")
+                    else:
+                        st.warning("이미 추가된 시점입니다.")
+            
+            with col2:
+                if st.button("🗑️ 전체 삭제", use_container_width=True):
+                    st.session_state['timepoints'] = []
+                    st.success("모든 시점이 삭제되었습니다.")
+            
+            # 현재 시점 목록
+            if st.session_state['timepoints']:
+                st.markdown("### 📋 지정된 시점")
+                
+                # 시점 표시 및 개별 삭제
+                cols = st.columns(min(len(st.session_state['timepoints']), 5))
+                for idx, time_point in enumerate(st.session_state['timepoints']):
+                    with cols[idx % 5]:
+                        if st.button(f"❌ {time_point:.2f}초", key=f"del_{idx}"):
+                            st.session_state['timepoints'].remove(time_point)
+                            st.rerun()
+                
+                st.markdown("---")
+                
+                # 분석 시작
+                if st.button("🔍 시점별 분석 시작", type="primary", use_container_width=True):
+                    with st.spinner("시점별 분석 중..."):
+                        # MediaPipe Pose 초기화
+                        with mp_pose.Pose(
+                            static_image_mode=True,
+                            model_complexity=1,
+                            min_detection_confidence=0.5
+                        ) as pose:
+                            timepoint_results = []
+                            
+                            for time_point in st.session_state['timepoints']:
+                                frame, angles, detected = analyze_frame_at_time(
+                                    temp_video.name,
+                                    time_point,
+                                    pose
+                                )
+                                
+                                if frame is not None:
+                                    timepoint_results.append({
+                                        'time': time_point,
+                                        'frame': frame,
+                                        'angles': angles,
+                                        'detected': detected
+                                    })
+                            
+                            st.session_state['timepoint_results'] = timepoint_results
+                    
+                    st.success("✅ 시점별 분석 완료!")
+                
+                # 분석 결과 표시
+                if 'timepoint_results' in st.session_state and st.session_state['timepoint_results']:
+                    st.markdown("---")
+                    st.markdown("### 📊 시점별 분석 결과")
+                    
+                    results = st.session_state['timepoint_results']
+                    
+                    # 시점별로 표시
+                    for idx, result in enumerate(results):
+                        st.markdown(f"#### 시점 {idx + 1}: {result['time']:.2f}초")
+                        
+                        col1, col2 = st.columns([2, 1])
+                        
+                        with col1:
+                            # 포즈가 그려진 이미지
+                            st.image(result['frame'], caption=f"{result['time']:.2f}초", use_container_width=True)
+                        
+                        with col2:
+                            # 각도 정보
+                            if result['detected'] and result['angles']:
+                                st.markdown("**🔢 관절 각도**")
+                                for joint, angle in result['angles'].items():
+                                    st.metric(joint, f"{angle:.1f}°")
+                            else:
+                                st.warning("포즈를 감지하지 못했습니다.")
+                        
+                        st.markdown("---")
+                    
+                    # 시점간 각도 비교 그래프
+                    if len(results) > 1:
+                        st.markdown("### 📈 시점간 각도 비교")
+                        
+                        # 모든 관절 이름 수집
+                        all_joints = set()
+                        for result in results:
+                            if result['angles']:
+                                all_joints.update(result['angles'].keys())
+                        
+                        if all_joints:
+                            selected_joints = st.multiselect(
+                                "비교할 관절 선택",
+                                list(all_joints),
+                                default=list(all_joints)[:3] if len(all_joints) >= 3 else list(all_joints)
+                            )
+                            
+                            if selected_joints:
+                                fig = go.Figure()
+                                
+                                for joint in selected_joints:
+                                    times = []
+                                    angles = []
+                                    
+                                    for result in results:
+                                        if joint in result['angles']:
+                                            times.append(result['time'])
+                                            angles.append(result['angles'][joint])
+                                    
+                                    if times:
+                                        fig.add_trace(go.Scatter(
+                                            x=times,
+                                            y=angles,
+                                            mode='lines+markers',
+                                            name=joint,
+                                            marker=dict(size=12),
+                                            line=dict(width=3)
+                                        ))
+                                
+                                fig.update_layout(
+                                    title="시점별 관절 각도 변화",
+                                    xaxis_title="시간 (초)",
+                                    yaxis_title="각도 (도)",
+                                    height=500,
+                                    hovermode='x unified'
+                                )
+                                
+                                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("👆 시점을 추가하여 분석을 시작하세요.")
+            
+            # 임시 파일 정리
+            try:
+                os.unlink(temp_video.name)
+            except:
+                pass
+        else:
+            st.info("비디오를 업로드하고 먼저 전체 분석을 실행해주세요.")
+    
+    with tab3:
         st.subheader("관절 각도 변화")
         
         if len(df_angles) > 0:
@@ -407,7 +692,7 @@ if 'df_tracking' in st.session_state and 'df_angles' in st.session_state:
         else:
             st.warning("각도 데이터가 없습니다.")
     
-    with tab3:
+    with tab4:
         st.subheader("키포인트 궤적 분석")
         
         # 키포인트 컬럼 추출
@@ -489,7 +774,7 @@ if 'df_tracking' in st.session_state and 'df_angles' in st.session_state:
         else:
             st.warning("키포인트 데이터가 없습니다.")
     
-    with tab4:
+    with tab5:
         st.subheader("데이터 다운로드")
         
         col1, col2 = st.columns(2)
