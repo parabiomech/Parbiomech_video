@@ -259,7 +259,7 @@ def analyze_frame_at_time(video_path, time_sec, pose_detector):
     return annotated_frame_rgb, angles, results.pose_landmarks is not None
 
 def process_video(video_file, timepoints, confidence_threshold=0.5):
-    """비디오를 처리하고 지정된 시점들을 분석"""
+    """비디오를 처리하고 전체 분석 영상 + 시점별 분석"""
     # 임시 파일로 저장
     temp_path = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
     temp_path.write(video_file.read())
@@ -270,21 +270,95 @@ def process_video(video_file, timepoints, confidence_threshold=0.5):
     fps = cap.get(cv2.CAP_PROP_FPS)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    cap.release()
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     
-    # 시점별 분석 수행
-    timepoint_results = []
+    # 전체 영상 분석 및 스켈레톤 오버레이
+    processed_frames = []
+    tracking_data = []
     
     with mp_pose.Pose(
-        static_image_mode=True,
-        model_complexity=1,
-        min_detection_confidence=confidence_threshold
+        min_detection_confidence=confidence_threshold,
+        min_tracking_confidence=confidence_threshold,
+        model_complexity=1
     ) as pose:
         
         progress_bar = st.progress(0)
         status_text = st.empty()
         
+        frame_count = 0
+        
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+            
+            # RGB로 변환
+            image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            image.flags.writeable = False
+            
+            # 포즈 감지
+            results = pose.process(image)
+            
+            # 다시 쓰기 가능하게
+            image.flags.writeable = True
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+            
+            # 포즈 랜드마크 그리기
+            if results.pose_landmarks:
+                mp_drawing.draw_landmarks(
+                    image,
+                    results.pose_landmarks,
+                    mp_pose.POSE_CONNECTIONS,
+                    landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style()
+                )
+                
+                # 랜드마크 데이터 저장
+                landmarks = results.pose_landmarks.landmark
+                frame_data = {
+                    'frame': frame_count,
+                    'time': frame_count / fps
+                }
+                
+                # 각 랜드마크의 x, y 좌표 저장
+                for idx, landmark in enumerate(landmarks):
+                    frame_data[f'x_{idx}'] = landmark.x
+                    frame_data[f'y_{idx}'] = landmark.y
+                    frame_data[f'z_{idx}'] = landmark.z
+                    frame_data[f'visibility_{idx}'] = landmark.visibility
+                
+                tracking_data.append(frame_data)
+            
+            # 처리된 프레임을 메모리에 저장
+            processed_frames.append(image)
+            
+            frame_count += 1
+            progress = int((frame_count / total_frames) * 50)  # 50%까지만 (전체 영상 처리)
+            progress_bar.progress(progress)
+            status_text.text(f'전체 영상 분석 중: {frame_count}/{total_frames} 프레임')
+        
+        cap.release()
+        
+        # 처리된 프레임들을 비디오 파일로 저장
+        output_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+        output_path = output_file.name
+        output_file.close()
+        
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+        
+        for frame in processed_frames:
+            out.write(frame)
+        
+        out.release()
+        
+        # 시점별 분석 수행
+        timepoint_results = []
+        
+        status_text.text('시점별 상세 분석 중...')
+        
         for idx, time_point in enumerate(timepoints):
+            progress = 50 + int(((idx + 1) / len(timepoints)) * 50)  # 50%~100%
+            progress_bar.progress(progress)
             status_text.text(f'시점 {idx+1}/{len(timepoints)} 분석 중... ({time_point:.2f}초)')
             
             frame, angles, detected = analyze_frame_at_time(
@@ -300,9 +374,6 @@ def process_video(video_file, timepoints, confidence_threshold=0.5):
                     'angles': angles,
                     'detected': detected
                 })
-            
-            progress = int(((idx + 1) / len(timepoints)) * 100)
-            progress_bar.progress(progress)
         
         progress_bar.empty()
         status_text.empty()
@@ -313,7 +384,10 @@ def process_video(video_file, timepoints, confidence_threshold=0.5):
     except:
         pass
     
-    return timepoint_results, fps, width, height
+    # 추적 데이터 DataFrame 생성
+    df_tracking = pd.DataFrame(tracking_data)
+    
+    return timepoint_results, df_tracking, output_path, fps, width, height
 
 # 메인 애플리케이션
 st.title("🎯 Parbiomech Video Analysis")
@@ -343,7 +417,7 @@ uploaded_file = st.file_uploader(
 
 if uploaded_file is not None:
     # 원본 비디오 표시
-    st.subheader("📹 원본 영상")
+    st.subheader("📹 원본 영상 및 시점 태그")
     
     # 비디오를 session state에 저장
     if 'original_video_bytes' not in st.session_state or st.session_state.get('uploaded_file_name') != uploaded_file.name:
@@ -352,14 +426,6 @@ if uploaded_file is not None:
         st.session_state['uploaded_file_name'] = uploaded_file.name
         st.session_state['timepoints'] = []  # 새 비디오 업로드 시 시점 초기화
         uploaded_file.seek(0)  # 파일 포인터를 처음으로 되돌림
-    
-    # 저장된 비디오 표시
-    st.video(st.session_state['original_video_bytes'])
-    
-    st.markdown("---")
-    
-    # 시점 태그 섹션
-    st.subheader("⏱️ 시점 태그")
     
     # 비디오 길이 계산
     temp_video = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
@@ -378,72 +444,81 @@ if uploaded_file is not None:
     except:
         pass
     
-    st.info(f"📹 비디오 길이: {total_time:.2f}초 ({total_frames} 프레임)")
+    st.info(f"📹 비디오 정보: {total_time:.2f}초 ({total_frames} 프레임, {fps:.1f}fps)")
     
-    col1, col2 = st.columns([3, 1])
+    # 비디오 재생과 시점 태그를 나란히 배치
+    col_video, col_tag = st.columns([2, 1])
     
-    with col1:
-        # 시점 추가 방법 선택
-        method = st.radio(
-            "시점 지정 방법",
-            ["슬라이더로 선택", "직접 입력"],
-            horizontal=True
-        )
+    with col_video:
+        # 저장된 비디오 표시
+        st.video(st.session_state['original_video_bytes'])
     
-    if method == "슬라이더로 선택":
-        selected_time = st.slider(
-            "시점 선택 (초)",
-            min_value=0.0,
-            max_value=total_time,
-            value=0.0,
-            step=0.1
-        )
-    else:
-        selected_time = st.number_input(
-            "시점 입력 (초)",
-            min_value=0.0,
-            max_value=total_time,
-            value=0.0,
-            step=0.1
-        )
-    
-    col1, col2, col3 = st.columns([1, 1, 2])
-    
-    with col1:
-        if st.button("➕ 시점 추가", use_container_width=True):
-            if selected_time not in st.session_state['timepoints']:
-                st.session_state['timepoints'].append(selected_time)
-                st.session_state['timepoints'].sort()
-                st.success(f"시점 {selected_time:.2f}초 추가됨")
-            else:
-                st.warning("이미 추가된 시점입니다.")
-    
-    with col2:
-        if st.button("🗑️ 전체 삭제", use_container_width=True):
-            st.session_state['timepoints'] = []
-            st.success("모든 시점이 삭제되었습니다.")
-    
-    # 현재 시점 목록
-    if st.session_state['timepoints']:
-        st.markdown("### 📋 지정된 시점")
+    with col_tag:
+        st.markdown("### ⏱️ 시점 태그")
         
-        # 시점 표시 및 개별 삭제
-        cols = st.columns(min(len(st.session_state['timepoints']), 5))
-        for idx, time_point in enumerate(st.session_state['timepoints']):
-            with cols[idx % 5]:
-                if st.button(f"❌ {time_point:.2f}초", key=f"del_{idx}"):
-                    st.session_state['timepoints'].remove(time_point)
-                    st.rerun()
-    else:
-        st.info("👆 시점을 추가하여 분석할 구간을 지정하세요.")
+        # 시점 추가 방법
+        tag_method = st.radio(
+            "태그 방법",
+            ["슬라이더", "직접 입력"],
+            horizontal=True,
+            key="tag_method"
+        )
+        
+        if tag_method == "슬라이더":
+            selected_time = st.slider(
+                "시점 (초)",
+                min_value=0.0,
+                max_value=total_time,
+                value=0.0,
+                step=0.1,
+                key="time_slider"
+            )
+        else:
+            selected_time = st.number_input(
+                "시점 (초)",
+                min_value=0.0,
+                max_value=total_time,
+                value=0.0,
+                step=0.1,
+                key="time_input"
+            )
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("➕ 추가", use_container_width=True, type="primary"):
+                if selected_time not in st.session_state['timepoints']:
+                    st.session_state['timepoints'].append(selected_time)
+                    st.session_state['timepoints'].sort()
+                    st.success(f"{selected_time:.2f}초 추가")
+                else:
+                    st.warning("중복 시점")
+        
+        with col2:
+            if st.button("🗑️ 전체삭제", use_container_width=True):
+                st.session_state['timepoints'] = []
+                st.success("전체 삭제됨")
+        
+        # 현재 시점 목록
+        if st.session_state['timepoints']:
+            st.markdown("**📋 지정된 시점**")
+            for idx, time_point in enumerate(st.session_state['timepoints']):
+                col_time, col_del = st.columns([3, 1])
+                with col_time:
+                    st.text(f"{idx+1}. {time_point:.2f}초")
+                with col_del:
+                    if st.button("❌", key=f"del_{idx}", use_container_width=True):
+                        st.session_state['timepoints'].remove(time_point)
+                        st.rerun()
+        else:
+            st.info("영상을 보며 시점을 추가하세요")
     
     st.markdown("---")
     
     # 분석 버튼
     if st.session_state['timepoints']:
         if st.button("🔍 분석 시작", type="primary", use_container_width=True):
-            with st.spinner("시점별 분석 중... 잠시만 기다려주세요."):
-                timepoint_results, fps, width, height = process_video(
+            with st.spinner("분석 중... 잠시만 기다려주세요."):
+                timepoint_results, df_tracking, output_video_path, fps, width, height = process_video(
                     uploaded_file,
                     st.session_state['timepoints'],
                     confidence_threshold
@@ -451,6 +526,8 @@ if uploaded_file is not None:
                 
                 # 결과를 세션 상태에 저장
                 st.session_state['timepoint_results'] = timepoint_results
+                st.session_state['df_tracking'] = df_tracking
+                st.session_state['output_video_path'] = output_video_path
                 st.session_state['fps'] = fps
                 st.session_state['video_info'] = f"{width}x{height} @ {fps:.1f}fps"
             
@@ -466,39 +543,66 @@ if uploaded_file is not None:
         results = st.session_state['timepoint_results']
         
         # 다운로드 섹션
-        st.subheader("💾 데이터 다운로드")
+        st.subheader("💾 다운로드")
         
-        # CSV 데이터 생성
-        download_data = []
-        for result in results:
-            if result['angles']:
-                row = {'시점(초)': result['time']}
-                
-                # 절대각도 추가
-                for name, value in result['angles']['absolute'].items():
-                    row[f'절대각도_{name}'] = f"{value:.2f}"
-                
-                # 상대각도 추가
-                for name, value in result['angles']['relative'].items():
-                    row[f'상대각도_{name}'] = f"{value:.2f}"
-                
-                download_data.append(row)
+        col1, col2, col3 = st.columns(3)
         
-        if download_data:
-            df_download = pd.DataFrame(download_data)
-            csv = df_download.to_csv(index=False, encoding='utf-8-sig')
-            
-            col1, col2 = st.columns(2)
-            with col1:
+        # 분석 영상 다운로드
+        with col1:
+            if 'output_video_path' in st.session_state and os.path.exists(st.session_state['output_video_path']):
+                with open(st.session_state['output_video_path'], 'rb') as video_file:
+                    video_bytes = video_file.read()
+                
                 st.download_button(
-                    label="📥 분석 데이터 CSV 다운로드",
+                    label="🎥 분석 영상 다운로드",
+                    data=video_bytes,
+                    file_name="skeleton_overlay_video.mp4",
+                    mime="video/mp4",
+                    use_container_width=True
+                )
+        
+        # CSV 데이터 생성 및 다운로드
+        with col2:
+            download_data = []
+            for result in results:
+                if result['angles']:
+                    row = {'시점(초)': result['time']}
+                    
+                    # 절대각도 추가
+                    for name, value in result['angles']['absolute'].items():
+                        row[f'절대각도_{name}'] = f"{value:.2f}"
+                    
+                    # 상대각도 추가
+                    for name, value in result['angles']['relative'].items():
+                        row[f'상대각도_{name}'] = f"{value:.2f}"
+                    
+                    download_data.append(row)
+            
+            if download_data:
+                df_download = pd.DataFrame(download_data)
+                csv = df_download.to_csv(index=False, encoding='utf-8-sig')
+                
+                st.download_button(
+                    label="📥 각도 데이터 CSV",
                     data=csv,
-                    file_name="pose_analysis_data.csv",
+                    file_name="angle_data.csv",
                     mime="text/csv",
                     use_container_width=True
                 )
-            with col2:
-                st.info(f"📊 비디오 정보: {st.session_state['video_info']}")
+        
+        # 궤적 데이터 다운로드
+        with col3:
+            if 'df_tracking' in st.session_state and not st.session_state['df_tracking'].empty:
+                tracking_csv = st.session_state['df_tracking'].to_csv(index=False, encoding='utf-8-sig')
+                st.download_button(
+                    label="📍 궤적 데이터 CSV",
+                    data=tracking_csv,
+                    file_name="tracking_data.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+        
+        st.info(f"📊 비디오 정보: {st.session_state['video_info']}")
         
         st.markdown("---")
         
@@ -506,28 +610,35 @@ if uploaded_file is not None:
         st.subheader("📸 시점별 분석 결과")
         
         for idx, result in enumerate(results):
-            st.markdown(f"### 시점 {idx + 1}: {result['time']:.2f}초")
-            
-            col1, col2 = st.columns([2, 1])
-            
-            with col1:
-                # 포즈가 그려진 이미지
-                st.image(result['frame'], caption=f"{result['time']:.2f}초", use_container_width=True)
-            
-            with col2:
-                # 각도 정보
-                if result['detected'] and result['angles']:
-                    st.markdown("**📐 절대각도 (분절 기울기)**")
-                    for joint, angle in result['angles']['absolute'].items():
-                        st.metric(joint, f"{angle:.1f}°")
-                    
-                    st.markdown("**🔢 상대각도 (관절각도)**")
-                    for joint, angle in result['angles']['relative'].items():
-                        st.metric(joint, f"{angle:.1f}°")
-                else:
-                    st.warning("포즈를 감지하지 못했습니다.")
-            
-            st.markdown("---")
+            with st.expander(f"🔍 시점 {idx + 1}: {result['time']:.2f}초", expanded=(idx == 0)):
+                col1, col2 = st.columns([2, 1])
+                
+                with col1:
+                    # 포즈가 그려진 이미지
+                    st.image(result['frame'], caption=f"{result['time']:.2f}초", use_container_width=True)
+                
+                with col2:
+                    # 각도 정보
+                    if result['detected'] and result['angles']:
+                        # 절대각도
+                        with st.expander("📐 절대각도 (분절 기울기)", expanded=False):
+                            # 2열로 표시
+                            abs_items = list(result['angles']['absolute'].items())
+                            cols = st.columns(2)
+                            for i, (joint, angle) in enumerate(abs_items):
+                                with cols[i % 2]:
+                                    st.markdown(f"**{joint}**: {angle:.1f}°")
+                        
+                        # 상대각도
+                        with st.expander("🔢 상대각도 (관절각도)", expanded=False):
+                            # 2열로 표시
+                            rel_items = list(result['angles']['relative'].items())
+                            cols = st.columns(2)
+                            for i, (joint, angle) in enumerate(rel_items):
+                                with cols[i % 2]:
+                                    st.markdown(f"**{joint}**: {angle:.1f}°")
+                    else:
+                        st.warning("포즈를 감지하지 못했습니다.")
         
         # 시점간 각도 비교 그래프
         if len(results) > 1:
@@ -629,6 +740,100 @@ if uploaded_file is not None:
                         )
                         
                         st.plotly_chart(fig, use_container_width=True)
+        
+        # 궤적 분석 추가
+        if 'df_tracking' in st.session_state and not st.session_state['df_tracking'].empty:
+            st.markdown("---")
+            st.subheader("📍 키포인트 궤적 분석")
+            
+            df_tracking = st.session_state['df_tracking']
+            
+            # 주요 키포인트 선택
+            keypoint_names = {
+                0: "코", 11: "왼쪽 어깨", 12: "오른쪽 어깨",
+                13: "왼쪽 팔꿈치", 14: "오른쪽 팔꿈치",
+                15: "왼쪽 손목", 16: "오른쪽 손목",
+                23: "왼쪽 엉덩이", 24: "오른쪽 엉덩이",
+                25: "왼쪽 무릎", 26: "오른쪽 무릎",
+                27: "왼쪽 발목", 28: "오른쪽 발목"
+            }
+            
+            selected_keypoints = st.multiselect(
+                "궤적을 분석할 키포인트 선택",
+                list(keypoint_names.keys()),
+                default=[15, 16, 27, 28],  # 손목, 발목
+                format_func=lambda x: keypoint_names[x],
+                key="keypoint_select"
+            )
+            
+            if selected_keypoints:
+                # 궤적 그래프
+                fig = go.Figure()
+                
+                for kp_idx in selected_keypoints:
+                    x_col = f'x_{kp_idx}'
+                    y_col = f'y_{kp_idx}'
+                    
+                    if x_col in df_tracking.columns and y_col in df_tracking.columns:
+                        fig.add_trace(go.Scatter(
+                            x=df_tracking[x_col],
+                            y=df_tracking[y_col],
+                            mode='markers',
+                            name=keypoint_names[kp_idx],
+                            marker=dict(
+                                size=3,
+                                color=df_tracking['frame'],
+                                colorscale='Viridis',
+                                showscale=True if kp_idx == selected_keypoints[0] else False,
+                                colorbar=dict(title="프레임")
+                            )
+                        ))
+                
+                fig.update_layout(
+                    title="키포인트 2D 궤적 (색상: 시간 진행)",
+                    xaxis_title="X 좌표",
+                    yaxis_title="Y 좌표",
+                    height=600,
+                    yaxis=dict(scaleanchor="x", scaleratio=1),
+                    hovermode='closest'
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # 시계열 그래프
+                st.markdown("### 시간에 따른 좌표 변화")
+                
+                for kp_idx in selected_keypoints:
+                    x_col = f'x_{kp_idx}'
+                    y_col = f'y_{kp_idx}'
+                    
+                    if x_col in df_tracking.columns and y_col in df_tracking.columns:
+                        from plotly.subplots import make_subplots
+                        
+                        fig2 = make_subplots(
+                            rows=2, cols=1,
+                            subplot_titles=(f"{keypoint_names[kp_idx]} - X 좌표", f"{keypoint_names[kp_idx]} - Y 좌표")
+                        )
+                        
+                        fig2.add_trace(
+                            go.Scatter(x=df_tracking['time'], y=df_tracking[x_col], 
+                                      mode='lines', name='X', line=dict(color='blue')),
+                            row=1, col=1
+                        )
+                        
+                        fig2.add_trace(
+                            go.Scatter(x=df_tracking['time'], y=df_tracking[y_col], 
+                                      mode='lines', name='Y', line=dict(color='red')),
+                            row=2, col=1
+                        )
+                        
+                        fig2.update_xaxes(title_text="시간 (초)", row=2, col=1)
+                        fig2.update_yaxes(title_text="X", row=1, col=1)
+                        fig2.update_yaxes(title_text="Y", row=2, col=1)
+                        fig2.update_layout(height=500, showlegend=False, 
+                                          title=f"{keypoint_names[kp_idx]} 시계열 변화")
+                        
+                        st.plotly_chart(fig2, use_container_width=True)
 
 else:
     st.info("👆 비디오 파일을 업로드하여 분석을 시작하세요.")
