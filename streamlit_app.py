@@ -446,16 +446,17 @@ if uploaded_file is not None:
     
     st.info(f"📹 비디오 정보: {total_time:.2f}초 ({total_frames} 프레임, {fps:.1f}fps)")
     
-    # 비디오 재생과 시점 태그를 나란히 배치
-    col_video, col_tag = st.columns([2, 1])
+    # 저장된 비디오 표시 (전체 너비 사용)
+    st.video(st.session_state['original_video_bytes'])
     
-    with col_video:
-        # 저장된 비디오 표시
-        st.video(st.session_state['original_video_bytes'])
+    st.markdown("---")
     
-    with col_tag:
-        st.markdown("### ⏱️ 시점 태그")
-        
+    # 시점 태그 섹션
+    st.subheader("⏱️ 시점 태그")
+    
+    col_input, col_buttons = st.columns([3, 1])
+    
+    with col_input:
         # 시점 추가 방법
         tag_method = st.radio(
             "태그 방법",
@@ -482,43 +483,46 @@ if uploaded_file is not None:
                 step=0.1,
                 key="time_input"
             )
+    
+    with col_buttons:
+        st.write("")  # 정렬용 빈 공간
+        st.write("")
+        if st.button("➕ 추가", use_container_width=True, type="primary"):
+            if selected_time not in st.session_state['timepoints']:
+                st.session_state['timepoints'].append(selected_time)
+                st.session_state['timepoints'].sort()
+                st.success(f"{selected_time:.2f}초 추가")
+            else:
+                st.warning("중복 시점")
         
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("➕ 추가", use_container_width=True, type="primary"):
-                if selected_time not in st.session_state['timepoints']:
-                    st.session_state['timepoints'].append(selected_time)
-                    st.session_state['timepoints'].sort()
-                    st.success(f"{selected_time:.2f}초 추가")
-                else:
-                    st.warning("중복 시점")
+        if st.button("🗑️ 전체삭제", use_container_width=True):
+            st.session_state['timepoints'] = []
+            st.success("전체 삭제됨")
+    
+    # 현재 시점 목록
+    if st.session_state['timepoints']:
+        st.markdown("**📋 지정된 시점**")
         
-        with col2:
-            if st.button("🗑️ 전체삭제", use_container_width=True):
-                st.session_state['timepoints'] = []
-                st.success("전체 삭제됨")
-        
-        # 현재 시점 목록
-        if st.session_state['timepoints']:
-            st.markdown("**📋 지정된 시점**")
-            for idx, time_point in enumerate(st.session_state['timepoints']):
-                col_time, col_del = st.columns([3, 1])
-                with col_time:
-                    st.text(f"{idx+1}. {time_point:.2f}초")
-                with col_del:
-                    if st.button("❌", key=f"del_{idx}", use_container_width=True):
-                        st.session_state['timepoints'].remove(time_point)
-                        st.rerun()
-        else:
-            st.info("영상을 보며 시점을 추가하세요")
+        # 한 줄에 여러 개 표시
+        cols = st.columns(5)
+        for idx, time_point in enumerate(st.session_state['timepoints']):
+            with cols[idx % 5]:
+                if st.button(f"❌ {time_point:.2f}초", key=f"del_{idx}", use_container_width=True):
+                    st.session_state['timepoints'].remove(time_point)
+                    st.rerun()
+    else:
+        st.info("영상을 보며 원하는 시점을 추가하세요")
     
     st.markdown("---")
     
     # 분석 버튼
     if st.session_state['timepoints']:
         if st.button("🔍 분석 시작", type="primary", use_container_width=True):
+            # uploaded_file을 다시 읽기
+            uploaded_file.seek(0)
+            
             with st.spinner("분석 중... 잠시만 기다려주세요."):
-                timepoint_results, df_tracking, output_video_path, fps, width, height = process_video(
+                timepoint_results, df_tracking, output_video_path, fps_result, width, height = process_video(
                     uploaded_file,
                     st.session_state['timepoints'],
                     confidence_threshold
@@ -528,8 +532,8 @@ if uploaded_file is not None:
                 st.session_state['timepoint_results'] = timepoint_results
                 st.session_state['df_tracking'] = df_tracking
                 st.session_state['output_video_path'] = output_video_path
-                st.session_state['fps'] = fps
-                st.session_state['video_info'] = f"{width}x{height} @ {fps:.1f}fps"
+                st.session_state['fps'] = fps_result
+                st.session_state['video_info'] = f"{width}x{height} @ {fps_result:.1f}fps"
             
             st.success("✅ 분석 완료!")
     else:
