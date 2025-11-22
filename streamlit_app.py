@@ -24,12 +24,12 @@ def check_video_codec(video_path):
         ret, frame = cap.read()
         cap.release()
         
-        if not ret or frame is None:
+        if not ret:
             return False, "비디오 코덱이 지원되지 않습니다. AV1 코덱은 현재 플랫폼에서 지원되지 않습니다."
         
         return True, "지원되는 형식"
     except Exception as e:
-        return False, f"오류: {str(e)}"
+        return False, f"비디오 형식 확인 중 오류가 발생했습니다."
 
 # 페이지 설정
 st.set_page_config(
