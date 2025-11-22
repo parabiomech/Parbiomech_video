@@ -50,20 +50,56 @@ streamlit run streamlit_app.py
 ## 📖 사용 방법
 
 1. **비디오 업로드**: MP4, MOV, AVI, MKV 형식 지원
-2. **설정 조정** (사이드바):
+   - ⚠️ **중요**: H.264 (AVC) 또는 H.265 (HEVC) 코덱 필요
+   - ❌ AV1 코덱은 지원되지 않음 (아래 변환 방법 참조)
+2. **원본 영상 재생 및 시점 태그**:
+   - 비디오 플레이어에서 원하는 시점에서 "시점 추가" 클릭
+   - 슬라이더를 드래그하거나 재생 중 실시간으로 시점 추가 가능
+3. **설정 조정** (사이드바):
    - 감지 신뢰도 임계값 조정
-   - 필터 강도 조정
-3. **분석 시작**: "🚀 분석 시작" 버튼 클릭
-4. **결과 확인**:
-   - 📈 관절 각도 그래프
-   - 📍 키포인트 추적 데이터
+4. **분석 시작**: "🚀 분석 시작" 버튼 클릭
+5. **결과 확인**:
+   - 🎥 스켈레톤 오버레이 비디오 다운로드
+   - 📊 시점별 각도 분석 (절대 각도 + 상대 각도)
+   - 📍 궤적 분석 그래프
    - 💾 CSV 파일 다운로드
 
-## 📊 분석되는 관절 각도
+## 🎬 비디오 형식 요구사항
 
-- 왼쪽/오른쪽 팔꿈치 (Elbow)
-- 왼쪽/오른쪽 무릎 (Knee)
-- 왼쪽/오른쪽 고관절 (Hip)
+### ✅ 지원되는 코덱
+- H.264 (AVC)
+- H.265 (HEVC)
+
+### ❌ 지원되지 않는 코덱
+- AV1 (변환 필요)
+
+### 🔄 AV1 → H.264 변환 방법
+
+**방법 1: FFmpeg 사용 (권장)**
+```bash
+ffmpeg -i input.mp4 -c:v libx264 -crf 23 -preset medium -c:a aac output.mp4
+```
+
+**방법 2: 온라인 변환 도구**
+- [CloudConvert](https://cloudconvert.com/mp4-converter)
+- [FreeConvert](https://www.freeconvert.com/video-converter)
+- [Online-Convert](https://www.online-convert.com/)
+
+**FFmpeg 설치 방법:**
+- Windows: [https://ffmpeg.org/download.html](https://ffmpeg.org/download.html)
+- Mac: `brew install ffmpeg`
+- Linux: `sudo apt install ffmpeg`
+
+## 📊 분석되는 각도
+
+### 절대 각도 (Absolute Angles) - 영상 기준 분절 각도
+- 머리, 어깨, 골반, 몸통
+- 좌/우 상완, 하완
+- 좌/우 대퇴, 하퇴
+
+### 상대 각도 (Relative Angles) - 관절 각도
+- 왼쪽/오른쪽 어깨, 팔꿈치, 손목
+- 왼쪽/오른쪽 엉덩이, 무릎, 발목
 
 ## 🔧 기술 스택
 
@@ -86,9 +122,11 @@ Parbiomech_video/
 
 ## ⚠️ 주의사항
 
+- **비디오 코덱**: H.264 또는 H.265 코덱만 지원됩니다. AV1 코덱은 변환이 필요합니다.
 - 대용량 비디오 파일은 처리 시간이 오래 걸릴 수 있습니다
 - Streamlit Cloud 무료 버전은 리소스 제한이 있습니다
-- 최적의 성능을 위해 1분 이내의 비디오를 권장합니다
+- 최적의 성능을 위해 1-2분 이내의 비디오를 권장합니다
+- 비디오 해상도가 높을수록 처리 시간이 증가합니다
 
 ## 📄 라이선스
 

@@ -13,6 +13,24 @@ mp_pose = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 
+def check_video_codec(video_path):
+    """비디오 코덱을 확인하고 지원 여부를 반환"""
+    try:
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            return False, "비디오를 열 수 없습니다."
+        
+        # 첫 프레임을 읽어서 확인
+        ret, frame = cap.read()
+        cap.release()
+        
+        if not ret or frame is None:
+            return False, "비디오 코덱이 지원되지 않습니다. AV1 코덱은 현재 플랫폼에서 지원되지 않습니다."
+        
+        return True, "지원되는 형식"
+    except Exception as e:
+        return False, f"오류: {str(e)}"
+
 # 페이지 설정
 st.set_page_config(
     page_title="Parbiomech Video Analysis",
@@ -394,6 +412,12 @@ def process_video(video_file, timepoints, confidence_threshold=0.5):
 st.title("🎯 Parbiomech Video Analysis")
 st.markdown("**MediaPipe 기반 포즈 분석 시스템**")
 
+# 비디오 형식 안내
+st.info("""
+ℹ️ **지원되는 비디오 형식**: H.264 (AVC) 또는 H.265 (HEVC) 코덱  
+⚠️ **지원되지 않는 형식**: AV1 코덱 (변환 필요)
+""")
+
 # 사이드바에 설정 추가
 st.sidebar.header("⚙️ 분석 설정")
 confidence_threshold = st.sidebar.slider(
@@ -413,7 +437,7 @@ if 'timepoints' not in st.session_state:
 uploaded_file = st.file_uploader(
     "비디오 파일을 업로드하세요",
     type=['mp4', 'avi', 'mov', 'mkv'],
-    help="분석할 비디오를 선택하세요"
+    help="H.264 또는 H.265 코덱을 사용하는 비디오를 선택하세요. AV1 코덱은 지원되지 않습니다."
 )
 
 if uploaded_file is not None:
@@ -428,12 +452,36 @@ if uploaded_file is not None:
         st.session_state['timepoints'] = []  # 새 비디오 업로드 시 시점 초기화
         uploaded_file.seek(0)  # 파일 포인터를 처음으로 되돌림
     
-    # 비디오 길이 계산
-    temp_video = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-    temp_video.write(st.session_state['original_video_bytes'])
-    temp_video.close()
+    # 비디오 코덱 확인
+    temp_check = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+    temp_check.write(st.session_state['original_video_bytes'])
+    temp_check.close()
     
-    cap = cv2.VideoCapture(temp_video.name)
+    codec_supported, codec_message = check_video_codec(temp_check.name)
+    
+    if not codec_supported:
+        st.error(f"""
+        ⚠️ **비디오 형식 오류**: {codec_message}
+        
+        **해결 방법:**
+        - AV1 코덱 비디오는 지원되지 않습니다
+        - H.264 (AVC) 또는 H.265 (HEVC) 코덱으로 변환해주세요
+        
+        **변환 방법 (ffmpeg 사용):**
+        ```bash
+        ffmpeg -i input.mp4 -c:v libx264 -crf 23 -preset medium -c:a aac output.mp4
+        ```
+        
+        또는 온라인 변환 도구를 사용하세요 (예: CloudConvert, FreeConvert 등)
+        """)
+        try:
+            os.unlink(temp_check.name)
+        except:
+            pass
+        st.stop()
+    
+    # 비디오 길이 계산
+    cap = cv2.VideoCapture(temp_check.name)
     fps = cap.get(cv2.CAP_PROP_FPS)
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     total_time = total_frames / fps if fps > 0 else 0
@@ -441,7 +489,7 @@ if uploaded_file is not None:
     
     # 임시 파일 삭제
     try:
-        os.unlink(temp_video.name)
+        os.unlink(temp_check.name)
     except:
         pass
     
