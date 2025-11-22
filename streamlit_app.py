@@ -6,6 +6,7 @@ import tempfile
 import os
 import pandas as pd
 import plotly.graph_objects as go
+import base64
 
 # MediaPipe 초기화
 mp_pose = mp.solutions.pose
@@ -446,55 +447,103 @@ if uploaded_file is not None:
     
     st.info(f"📹 비디오 정보: {total_time:.2f}초 ({total_frames} 프레임, {fps:.1f}fps)")
     
-    # 저장된 비디오 표시 (전체 너비 사용)
-    st.video(st.session_state['original_video_bytes'])
+    # 비디오를 base64로 인코딩
+    video_base64 = base64.b64encode(st.session_state['original_video_bytes']).decode()
+    
+    # HTML5 비디오 플레이어와 시점 태그 통합
+    st.markdown("### 📹 원본 영상")
+    
+    video_html = f"""
+    <div style="margin-bottom: 20px;">
+        <video id="videoPlayer" width="100%" controls>
+            <source src="data:video/mp4;base64,{video_base64}" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+    </div>
+    
+    <div style="margin-top: 20px; padding: 15px; background-color: #f0f2f6; border-radius: 10px;">
+        <h4>⏱️ 시점 태그</h4>
+        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
+            <div style="flex: 1;">
+                <label style="font-size: 14px; font-weight: bold;">현재 시점: <span id="currentTime">0.00</span>초</label>
+                <input type="range" id="timeSlider" min="0" max="{total_time}" step="0.1" value="0" 
+                       style="width: 100%; margin-top: 5px;" />
+            </div>
+            <button onclick="addTimepoint()" 
+                    style="padding: 10px 20px; background-color: #FF4B4B; color: white; border: none; 
+                           border-radius: 5px; cursor: pointer; font-weight: bold;">
+                ➕ 시점 추가
+            </button>
+        </div>
+        <div id="timepointsList" style="margin-top: 10px;"></div>
+    </div>
+    
+    <script>
+        const video = document.getElementById('videoPlayer');
+        const slider = document.getElementById('timeSlider');
+        const currentTimeDisplay = document.getElementById('currentTime');
+        
+        // 비디오 시간 업데이트
+        video.addEventListener('timeupdate', function() {{
+            slider.value = video.currentTime;
+            currentTimeDisplay.textContent = video.currentTime.toFixed(2);
+        }});
+        
+        // 슬라이더 변경 시 비디오 이동
+        slider.addEventListener('input', function() {{
+            video.currentTime = slider.value;
+            currentTimeDisplay.textContent = slider.value;
+        }});
+        
+        // 시점 추가 함수
+        function addTimepoint() {{
+            const currentTime = parseFloat(video.currentTime.toFixed(2));
+            
+            // Streamlit과 통신하기 위해 window.parent로 메시지 전송
+            window.parent.postMessage({{
+                type: 'streamlit:setComponentValue',
+                key: 'add_timepoint',
+                value: currentTime
+            }}, '*');
+            
+            alert('시점 ' + currentTime + '초가 추가되었습니다.');
+        }}
+    </script>
+    """
+    
+    st.components.v1.html(video_html, height=600, scrolling=False)
     
     st.markdown("---")
     
-    # 시점 태그 섹션
-    st.subheader("⏱️ 시점 태그")
+    # 시점 추가 처리
+    if 'last_added_time' not in st.session_state:
+        st.session_state['last_added_time'] = None
     
-    col_input, col_buttons = st.columns([3, 1])
+    # 수동 시점 추가 인터페이스 (백업용)
+    st.markdown("### 📋 시점 관리")
     
-    with col_input:
-        # 시점 추가 방법
-        tag_method = st.radio(
-            "태그 방법",
-            ["슬라이더", "직접 입력"],
-            horizontal=True,
-            key="tag_method"
+    col1, col2, col3 = st.columns([2, 1, 1])
+    
+    with col1:
+        manual_time = st.number_input(
+            "수동 시점 입력 (초)",
+            min_value=0.0,
+            max_value=total_time,
+            value=0.0,
+            step=0.1,
+            key="manual_time_input"
         )
-        
-        if tag_method == "슬라이더":
-            selected_time = st.slider(
-                "시점 (초)",
-                min_value=0.0,
-                max_value=total_time,
-                value=0.0,
-                step=0.1,
-                key="time_slider"
-            )
-        else:
-            selected_time = st.number_input(
-                "시점 (초)",
-                min_value=0.0,
-                max_value=total_time,
-                value=0.0,
-                step=0.1,
-                key="time_input"
-            )
     
-    with col_buttons:
-        st.write("")  # 정렬용 빈 공간
-        st.write("")
+    with col2:
         if st.button("➕ 추가", use_container_width=True, type="primary"):
-            if selected_time not in st.session_state['timepoints']:
-                st.session_state['timepoints'].append(selected_time)
+            if manual_time not in st.session_state['timepoints']:
+                st.session_state['timepoints'].append(manual_time)
                 st.session_state['timepoints'].sort()
-                st.success(f"{selected_time:.2f}초 추가")
+                st.success(f"{manual_time:.2f}초 추가")
             else:
                 st.warning("중복 시점")
-        
+    
+    with col3:
         if st.button("🗑️ 전체삭제", use_container_width=True):
             st.session_state['timepoints'] = []
             st.success("전체 삭제됨")
