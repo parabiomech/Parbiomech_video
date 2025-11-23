@@ -7,6 +7,10 @@ import os
 import pandas as pd
 import plotly.graph_objects as go
 
+# MediaPipe 모델 캐시 디렉토리를 쓰기 가능한 위치로 설정
+os.environ['MEDIAPIPE_RESOURCE_CACHE_DIR'] = tempfile.gettempdir()
+os.environ['MEDIAPIPE_DISABLE_GPU'] = '1'
+
 # MediaPipe 초기화
 mp_pose = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils
