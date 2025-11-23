@@ -335,9 +335,7 @@ def process_video(video_file, timepoints, confidence_threshold=0.5):
     with mp_pose.Pose(
         min_detection_confidence=confidence_threshold,
         min_tracking_confidence=confidence_threshold,
-        model_complexity=0,
-        enable_segmentation=False,
-        smooth_landmarks=True
+        model_complexity=1
     ) as pose:
         
         progress_bar = st.progress(0)
@@ -542,14 +540,150 @@ if uploaded_file is not None:
     
     st.info(f"📹 비디오 정보: {total_time:.2f}초 ({total_frames} 프레임, {fps:.1f}fps)")
     
-    # 비디오 표시 (간단한 방식)
+    # 영상 재생 중 시점 태그 기능
     st.markdown("### 📹 원본 영상")
-    st.video(st.session_state['original_video_bytes'])
+    
+    # 비디오를 HTML5 플레이어로 표시
+    import base64
+    video_base64 = base64.b64encode(st.session_state['original_video_bytes']).decode()
+    
+    # 현재 추가된 시점 표시용
+    current_timepoints = ", ".join([f"{t:.2f}초" for t in st.session_state['timepoints']]) if st.session_state['timepoints'] else "없음"
+    
+    video_html = f"""
+    <style>
+        .video-container {{
+            margin-bottom: 20px;
+        }}
+        .tag-panel {{
+            background: #f0f2f6;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 15px;
+        }}
+        .tag-controls {{
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 15px;
+        }}
+        .time-display {{
+            flex: 1;
+            font-size: 16px;
+            font-weight: bold;
+        }}
+        .add-btn {{
+            padding: 12px 24px;
+            background: #FF4B4B;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }}
+        .add-btn:hover {{
+            background: #FF6B6B;
+        }}
+        .timepoint-list {{
+            font-size: 14px;
+            color: #666;
+            margin-top: 10px;
+        }}
+    </style>
+    
+    <div class="video-container">
+        <video id="mainVideo" width="100%" controls>
+            <source src="data:video/mp4;base64,{video_base64}" type="video/mp4">
+        </video>
+    </div>
+    
+    <div class="tag-panel">
+        <h4>⏱️ 시점 태그</h4>
+        <div class="tag-controls">
+            <div class="time-display">
+                현재 시점: <span id="currentTime">0.00</span>초 / {total_time:.2f}초
+            </div>
+            <button class="add-btn" onclick="addCurrentTime()">➕ 현재 시점 추가</button>
+        </div>
+        <div class="timepoint-list">
+            추가된 시점: <span id="timepointDisplay">{current_timepoints}</span>
+        </div>
+    </div>
+    
+    <script>
+        const video = document.getElementById('mainVideo');
+        const timeDisplay = document.getElementById('currentTime');
+        const timepointDisplay = document.getElementById('timepointDisplay');
+        
+        // 시점 목록 (Python session state와 동기화)
+        let timepoints = {st.session_state['timepoints']};
+        
+        // 비디오 시간 업데이트
+        video.addEventListener('timeupdate', function() {{
+            timeDisplay.textContent = video.currentTime.toFixed(2);
+        }});
+        
+        // 시점 목록 업데이트
+        function updateTimepointDisplay() {{
+            if (timepoints.length > 0) {{
+                timepointDisplay.textContent = timepoints.map(t => t.toFixed(2) + '초').join(', ');
+            }} else {{
+                timepointDisplay.textContent = '없음';
+            }}
+        }}
+        
+        // 현재 시점 추가
+        function addCurrentTime() {{
+            const currentTime = parseFloat(video.currentTime.toFixed(2));
+            
+            if (!timepoints.includes(currentTime)) {{
+                timepoints.push(currentTime);
+                timepoints.sort((a, b) => a - b);
+                updateTimepointDisplay();
+                
+                // Streamlit에 데이터 전송
+                window.parent.postMessage({{
+                    type: 'streamlit:setComponentValue',
+                    value: currentTime
+                }}, '*');
+                
+                // 성공 메시지
+                const tempMsg = document.createElement('div');
+                tempMsg.style.cssText = 'position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px 25px;border-radius:5px;z-index:9999;';
+                tempMsg.textContent = `✓ ${{currentTime.toFixed(2)}}초 추가됨`;
+                document.body.appendChild(tempMsg);
+                setTimeout(() => tempMsg.remove(), 2000);
+            }} else {{
+                alert('이미 추가된 시점입니다.');
+            }}
+        }}
+        
+        // 키보드 단축키: 스페이스바로 시점 추가
+        document.addEventListener('keydown', function(e) {{
+            if (e.code === 'Space' && e.target.tagName !== 'INPUT') {{
+                e.preventDefault();
+                addCurrentTime();
+            }}
+        }});
+    </script>
+    """
+    
+    # HTML 컴포넌트 표시
+    from streamlit.components.v1 import html
+    added_time = html(video_html, height=600)
+    
+    # JavaScript에서 추가된 시점 처리
+    if added_time is not None and added_time > 0:
+        if added_time not in st.session_state['timepoints']:
+            st.session_state['timepoints'].append(added_time)
+            st.session_state['timepoints'].sort()
+            st.rerun()
     
     st.markdown("---")
     
     # 시점 관리 섹션
-    st.markdown("### 📋 시점 태그")
+    st.markdown("### 📋 시점 관리")
     
     # 현재 시점 목록
     if st.session_state['timepoints']:
