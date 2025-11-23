@@ -328,14 +328,21 @@ def process_video(video_file, timepoints, confidence_threshold=0.5):
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     
-    # 전체 영상 분석 및 스켈레톤 오버레이
-    processed_frames = []
+    # 전체 영상 분석 및 스켈레톤 오버레이 (메모리 절약: 직접 파일에 쓰기)
     tracking_data = []
+    
+    # 출력 비디오 준비
+    output_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+    output_path = output_file.name
+    output_file.close()
+    
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
     
     with mp_pose.Pose(
         min_detection_confidence=confidence_threshold,
         min_tracking_confidence=confidence_threshold,
-        model_complexity=1
+        model_complexity=0  # lite 모델로 메모리 절약
     ) as pose:
         
         progress_bar = st.progress(0)
@@ -384,8 +391,8 @@ def process_video(video_file, timepoints, confidence_threshold=0.5):
                 
                 tracking_data.append(frame_data)
             
-            # 처리된 프레임을 메모리에 저장
-            processed_frames.append(image)
+            # 메모리에 저장하지 않고 바로 파일에 쓰기
+            out.write(image)
             
             frame_count += 1
             progress = int((frame_count / total_frames) * 50)  # 50%까지만 (전체 영상 처리)
@@ -393,18 +400,6 @@ def process_video(video_file, timepoints, confidence_threshold=0.5):
             status_text.text(f'전체 영상 분석 중: {frame_count}/{total_frames} 프레임')
         
         cap.release()
-        
-        # 처리된 프레임들을 비디오 파일로 저장
-        output_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-        output_path = output_file.name
-        output_file.close()
-        
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
-        
-        for frame in processed_frames:
-            out.write(frame)
-        
         out.release()
         
         # 시점별 분석 수행
