@@ -3,512 +3,686 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Keypoint Tracker - 동작 분석 도구</title>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>Parbiomech Video Analysis</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
         }
-        
+
         .container {
             max-width: 1400px;
             margin: 0 auto;
             background: white;
             border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
         }
-        
-        h1 {
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
             text-align: center;
-            color: #333;
-            margin-bottom: 30px;
+        }
+
+        .header h1 {
             font-size: 2.5em;
+            margin-bottom: 10px;
         }
-        
-        .upload-section {
-            text-align: center;
-            margin-bottom: 30px;
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .main-content {
             padding: 30px;
+        }
+
+        .upload-section {
+            background: #f8f9fa;
             border: 3px dashed #667eea;
             border-radius: 15px;
-            background: #f8f9ff;
-        }
-        
-        .upload-section input[type="file"] {
-            display: none;
-        }
-        
-        .upload-btn {
-            background: #667eea;
-            color: white;
-            padding: 15px 40px;
-            border: none;
-            border-radius: 30px;
-            font-size: 18px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
             cursor: pointer;
             transition: all 0.3s;
         }
-        
-        .upload-btn:hover {
-            background: #5568d3;
+
+        .upload-section:hover {
+            background: #e9ecef;
+            border-color: #764ba2;
+        }
+
+        .upload-section.active {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+
+        .video-container {
+            display: none;
+            margin-bottom: 30px;
+        }
+
+        .video-container.active {
+            display: block;
+        }
+
+        video {
+            width: 100%;
+            max-height: 500px;
+            border-radius: 10px;
+            background: black;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
         }
-        
-        .main-content {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        
-        .video-section, .graph-section {
-            background: #f9f9f9;
-            padding: 20px;
-            border-radius: 15px;
-        }
-        
-        .video-section h2, .graph-section h2 {
-            margin-bottom: 15px;
-            color: #333;
-        }
-        
-        .canvas-container {
-            position: relative;
-            width: 100%;
-            background: #000;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-        
-        #videoElement {
-            position: absolute;
-            width: 100%;
-            height: auto;
-            opacity: 0;
-            pointer-events: none;
-            z-index: 0;
-        }
-        
-        #canvasElement {
-            position: relative;
-            width: 100%;
-            height: auto;
-            display: block;
-            z-index: 1;
-        }
-        
-        .controls {
-            margin-top: 15px;
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        
-        .btn {
-            padding: 10px 25px;
-            border: none;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.3s;
-        }
-        
-        .btn-primary {
-            background: #667eea;
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            background: #5568d3;
-        }
-        
+
         .btn-success {
-            background: #10b981;
+            background: #28a745;
             color: white;
-        }
-        
-        .btn-success:hover {
-            background: #059669;
-        }
-        
-        .btn-danger {
-            background: #ef4444;
-            color: white;
-        }
-        
-        .btn-danger:hover {
-            background: #dc2626;
-        }
-        
-        .btn-warning {
-            background: #f59e0b;
-            color: white;
-        }
-        
-        .btn-warning:hover {
-            background: #d97706;
-        }
-        
-        .keypoint-selector {
-            margin: 15px 0;
-        }
-        
-        .keypoint-selector select {
-            width: 100%;
-            padding: 10px;
-            border-radius: 10px;
-            border: 2px solid #e5e7eb;
-            font-size: 14px;
-        }
-        
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            margin-top: 20px;
-        }
-        
-        .stat-card {
-            background: white;
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        .stat-card h3 {
-            font-size: 14px;
-            color: #6b7280;
-            margin-bottom: 5px;
-        }
-        
-        .stat-card p {
-            font-size: 24px;
-            font-weight: bold;
-            color: #667eea;
-        }
-        
-        .marker-list {
-            margin-top: 15px;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-        
-        .marker-item {
-            background: white;
-            padding: 10px;
-            margin-bottom: 5px;
-            border-radius: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .marker-item button {
-            padding: 5px 10px;
-            font-size: 12px;
-        }
-        
-        #chartCanvas {
-            width: 100% !important;
-            height: 300px !important;
-        }
-        
-        #angleChartCanvas {
-            width: 100% !important;
-            height: 300px !important;
-        }
-        
-        #trajectoryChartCanvas {
-            width: 100% !important;
-            height: 300px !important;
-        }
-        
-        .info-text {
-            text-align: center;
-            color: #6b7280;
-            margin-top: 10px;
-            font-size: 14px;
-        }
-        
-        .angle-section {
-            background: #f9f9f9;
-            padding: 20px;
-            border-radius: 15px;
-            margin-top: 20px;
-        }
-        
-        .angle-type-selector {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-            justify-content: center;
-        }
-        
-        .angle-type-btn {
-            padding: 8px 20px;
-            border: 2px solid #667eea;
-            background: white;
-            border-radius: 20px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .angle-type-btn.active {
-            background: #667eea;
-            color: white;
-        }
-        
-        .filter-control {
-            margin: 15px 0;
-            padding: 15px;
-            background: white;
-            border-radius: 10px;
-        }
-        
-        .filter-control label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        
-        .filter-control input[type="range"] {
-            width: 100%;
-        }
-        
-        .comparison-card {
-            min-width: 300px;
-            background: white;
-            border-radius: 15px;
-            padding: 15px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            text-align: center;
-        }
-        
-        .comparison-card h4 {
-            margin-bottom: 10px;
-            color: #667eea;
-            font-size: 16px;
-        }
-        
-        .comparison-card canvas {
-            border: 2px solid #e5e7eb;
-            border-radius: 10px;
-            background: #f9fafb;
-            margin-bottom: 10px;
-        }
-        
-        .comparison-card .angle-info {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 10px;
-        }
-        
-        .comparison-card .angle-value {
-            background: #f3f4f6;
-            padding: 6px 10px;
-            border-radius: 8px;
-            font-size: 11px;
-            flex: 0 0 auto;
-        }
-        
-        .comparison-card .angle-value strong {
-            display: block;
-            color: #667eea;
-            font-size: 16px;
-            margin-top: 3px;
         }
 
-        @media (max-width: 1200px) {
-            .main-content {
-                grid-template-columns: 1fr;
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .timepoints-list {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            min-height: 100px;
+        }
+
+        .timepoint-tag {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            margin: 5px;
+            font-size: 14px;
+        }
+
+        .results-section {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .results-section.active {
+            display: block;
+        }
+
+        .result-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .result-image {
+            width: 100%;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .angles-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .angles-table th,
+        .angles-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .angles-table th {
+            background: #667eea;
+            color: white;
+            font-weight: bold;
+        }
+
+        .angles-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e9ecef;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .progress-bar.active {
+            display: block;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading-spinner.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        canvas {
+            display: none;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            min-width: 300px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
             }
-            
-            .angle-section > div[style*="grid-template-columns"] {
-                grid-template-columns: 1fr !important;
+            to {
+                transform: translateX(0);
+                opacity: 1;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎯 Keypoint Tracker</h1>
-        
-        <div class="upload-section">
-            <input type="file" id="videoInput" accept="video/*">
-            <label for="videoInput" class="upload-btn">📹 영상 업로드</label>
-            <p class="info-text">영상을 업로드하면 자동으로 관절점을 감지합니다</p>
+        <div class="header">
+            <h1>🎯 Parbiomech Video Analysis</h1>
+            <p>MediaPipe 기반 웹 포즈 분석 시스템</p>
         </div>
-        
+
         <div class="main-content">
-            <!-- 비디오 섹션 -->
-            <div class="video-section">
-                <h2>📹 비디오 & Keypoint</h2>
-                <div class="canvas-container">
-                    <video id="videoElement" playsinline></video>
-                    <canvas id="canvasElement"></canvas>
-                </div>
-                
-                <!-- 비디오 진행률 표시 -->
-                <div style="margin-top: 10px; background: white; padding: 10px; border-radius: 8px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                        <span style="font-size: 14px; font-weight: bold;">재생 시간</span>
-                        <span id="videoTimeDisplay" style="font-size: 14px; color: #667eea;">0:00 / 0:00</span>
-                    </div>
-                    <input type="range" id="videoProgress" min="0" max="100" value="0" step="0.1" 
-                           style="width: 100%; cursor: pointer;">
-                </div>
-                
-                <div class="controls">
-                    <button class="btn btn-primary" id="playPauseBtn" disabled>▶️ 재생</button>
-                    <button class="btn btn-danger" id="stopBtn" disabled>⏹️ 정지</button>
-                    <button class="btn btn-warning" id="addMarkerBtn" disabled>📍 마커 추가</button>
-                </div>
-                
-                <div class="keypoint-selector">
-                    <label><strong>추적할 관절점:</strong></label>
-                    <select id="keypointSelect" multiple size="5">
-                        <option value="0" selected>코 (Nose)</option>
-                        <option value="11">왼쪽 어깨 (Left Shoulder)</option>
-                        <option value="12">오른쪽 어깨 (Right Shoulder)</option>
-                        <option value="13">왼쪽 팔꿈치 (Left Elbow)</option>
-                        <option value="14">오른쪽 팔꿈치 (Right Elbow)</option>
-                        <option value="15">왼쪽 손목 (Left Wrist)</option>
-                        <option value="16">오른쪽 손목 (Right Wrist)</option>
-                        <option value="23">왼쪽 엉덩이 (Left Hip)</option>
-                        <option value="24">오른쪽 엉덩이 (Right Hip)</option>
-                        <option value="25">왼쪽 무릎 (Left Knee)</option>
-                        <option value="26">오른쪽 무릎 (Right Knee)</option>
-                        <option value="27">왼쪽 발목 (Left Ankle)</option>
-                        <option value="28">오른쪽 발목 (Right Ankle)</option>
-                    </select>
-                    <p class="info-text">Ctrl + 클릭으로 여러 개 선택</p>
-                </div>
-                
-                <div class="filter-control">
-                    <label>스무딩 필터 강도: <span id="filterStrengthValue">5</span></label>
-                    <input type="range" id="filterStrength" min="1" max="15" value="5">
-                    <p class="info-text">값이 클수록 더 부드러워집니다</p>
-                </div>
-            </div>
-            
-            <!-- 그래프 섹션 -->
-            <div class="graph-section">
-                <h2>📊 관절점 추적 그래프</h2>
-                <canvas id="chartCanvas"></canvas>
-                
-                <h2 style="margin-top: 20px;">🎯 관절점 이동 궤적 (X-Y)</h2>
-                <canvas id="trajectoryChartCanvas"></canvas>
-                
-                <div class="stats">
-                    <div class="stat-card">
-                        <h3>프레임</h3>
-                        <p id="frameCount">0</p>
-                    </div>
-                    <div class="stat-card">
-                        <h3>시간</h3>
-                        <p id="timeDisplay">0.0s</p>
-                    </div>
-                    <div class="stat-card">
-                        <h3>마커</h3>
-                        <p id="markerCount">0</p>
-                    </div>
-                </div>
-                
-                <div style="margin-top: 20px;">
-                    <h3>이벤트 마커</h3>
-                    <div class="controls">
-                        <button class="btn btn-success" id="autoMarkerBtn" disabled>🤖 자동 마커 (Min/Max)</button>
-                        <button class="btn btn-success" id="exportCSVBtn" disabled>💾 CSV 다운로드</button>
-                        <button class="btn btn-success" id="exportJSONBtn" disabled>💾 JSON 다운로드</button>
-                    </div>
-                    <div class="marker-list" id="markerList"></div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 각도 분석 섹션 -->
-        <div class="angle-section">
-            <h2>📐 관절 각도 분석 (Joint & Segment Angles)</h2>
-            
-            <!-- 각도 선택 설명 -->
-            <div style="background: white; padding: 15px; border-radius: 10px; margin-bottom: 15px; text-align: center;">
-                <h3 style="font-size: 14px; margin-bottom: 10px; color: #667eea;">💡 각도 선택 방법</h3>
-                <p style="font-size: 13px; color: #6b7280;">
-                    아래 "각도 설명" 캔버스에서 표시된 각도 부위를 직접 클릭하여 선택/해제할 수 있습니다.<br>
-                    클릭 시 즉시 반영되며, 선택된 각도만 그림에 표시됩니다.
+            <!-- 업로드 섹션 -->
+            <div class="upload-section" id="uploadSection">
+                <h2>📂 비디오 파일 선택</h2>
+                <p style="margin: 15px 0;">MP4, AVI, MOV, WebM 형식 지원</p>
+                <input type="file" id="videoInput" accept="video/*" style="display: none;">
+                <button class="btn btn-primary" onclick="document.getElementById('videoInput').click()">
+                    📁 파일 선택
+                </button>
+                <p style="margin-top: 15px; color: #6c757d; font-size: 14px;">
+                    또는 파일을 여기로 드래그하세요
                 </p>
             </div>
-            
-            <!-- 숨겨진 체크박스 (프로그램 제어용) -->
-            <div style="display: none;">
-                <input type="checkbox" class="angle-checkbox" value="ankleDorsi">
-                <input type="checkbox" class="angle-checkbox" value="kneeFlex" checked>
-                <input type="checkbox" class="angle-checkbox" value="hipFlex" checked>
-                <input type="checkbox" class="angle-checkbox" value="shoulderFlex">
-                <input type="checkbox" class="angle-checkbox" value="elbowFlex" checked>
-                <input type="checkbox" class="angle-checkbox" value="footSeg">
-                <input type="checkbox" class="angle-checkbox" value="shankSeg">
-                <input type="checkbox" class="angle-checkbox" value="thighSeg">
-                <input type="checkbox" class="angle-checkbox" value="trunkSeg">
-                <input type="checkbox" class="angle-checkbox" value="armSeg">
-                <input type="checkbox" class="angle-checkbox" value="forearmSeg">
-            </div>
-            
-            <!-- 포즈 스켈레톤 및 각돀 설명 -->
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px;">
-                <div style="background: white; padding: 15px; border-radius: 10px;">
-                    <h3 style="margin-bottom: 10px; font-size: 16px;">현재 포즈</h3>
-                    <canvas id="poseSkeletonCanvas" width="450" height="600" style="width: 100%; border: 2px solid #e5e7eb; border-radius: 8px; background: #f9fafb;"></canvas>
-                </div>
+
+            <!-- 비디오 플레이어 -->
+            <div class="video-container" id="videoContainer">
+                <video id="videoPlayer" controls></video>
                 
-                <div style="background: white; padding: 15px; border-radius: 10px;">
-                    <h3 style="margin-bottom: 10px; font-size: 16px;">시상면 각도 <span style="font-size: 12px; color: #667eea;">(클릭하여 선택)</span></h3>
-                    <canvas id="sagittalAngleCanvas" width="400" height="600" style="width: 100%; border: 2px solid #e5e7eb; border-radius: 8px; background: #f9fafb; cursor: pointer;"></canvas>
+                <div class="controls">
+                    <button class="btn btn-success" id="tagBtn" onclick="tagCurrentTime()">
+                        🏷️ 현재 시점 태그 (Space)
+                    </button>
+                    <button class="btn btn-danger" id="clearBtn" onclick="clearAllTimepoints()">
+                        🗑️ 전체 삭제
+                    </button>
+                    <button class="btn btn-primary" id="analyzeBtn" onclick="startAnalysis()">
+                        🔍 분석 시작
+                    </button>
                 </div>
-                
-                <div style="background: white; padding: 15px; border-radius: 10px;">
-                    <h3 style="margin-bottom: 10px; font-size: 16px;">정면 각도 <span style="font-size: 12px; color: #667eea;">(클릭하여 선택)</span></h3>
-                    <canvas id="frontalAngleCanvas" width="400" height="600" style="width: 100%; border: 2px solid #e5e7eb; border-radius: 8px; background: #f9fafb; cursor: pointer;"></canvas>
+
+                <div class="timepoints-list" id="timepointsList">
+                    <h3>태그된 시점 (0개)</h3>
+                    <div id="timepointsContainer"></div>
                 </div>
             </div>
-            
-            <!-- 각도값 표시 -->
-            <div id="angleTextDisplay" style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 10px;"></div>
-            
-            <div id="angleGraphContainer">
-                <canvas id="angleChartCanvas"></canvas>
+
+            <!-- 진행률 표시 -->
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-fill" id="progressFill">0%</div>
             </div>
-        </div>
-        
-        <!-- 시점별 비교 섹션 -->
-        <div class="angle-section">
-            <h2>🔍 시점별 포즈 비교</h2>
-            <p class="info-text">수동 마커를 추가하면 해당 시점의 포즈와 각도가 여기에 표시됩니다</p>
-            <div id="poseComparisonContainer" style="display: flex; gap: 15px; overflow-x: auto; padding: 20px 0;">
-                <div style="text-align: center; color: #9ca3af; padding: 40px;">
-                    마커를 추가하면 시점별 비교가 여기에 표시됩니다
-                </div>
+
+            <div class="loading-spinner" id="loadingSpinner">
+                <div class="spinner"></div>
+                <p style="margin-top: 15px;">분석 중입니다...</p>
+            </div>
+
+            <!-- 결과 섹션 -->
+            <div class="results-section" id="resultsSection">
+                <h2>📊 분석 결과</h2>
+                <div id="resultsContainer"></div>
             </div>
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <!-- MediaPipe 라이브러리 -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+
+    <script>
+        let videoElement = document.getElementById('videoPlayer');
+        let timepoints = [];
+        let pose = null;
+        let canvas = document.createElement('canvas');
+        let ctx = canvas.getContext('2d');
+
+        // MediaPipe Pose 초기화
+        function initPose() {
+            pose = new Pose({
+                locateFile: (file) => {
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+                }
+            });
+
+            pose.setOptions({
+                modelComplexity: 1,
+                smoothLandmarks: true,
+                enableSegmentation: false,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+        }
+
+        // 파일 선택 처리
+        document.getElementById('videoInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const url = URL.createObjectURL(file);
+                videoElement.src = url;
+                document.getElementById('videoContainer').classList.add('active');
+                document.getElementById('uploadSection').classList.add('active');
+                timepoints = [];
+                updateTimepointsList();
+                
+                if (!pose) {
+                    initPose();
+                }
+            }
+        });
+
+        // 드래그 앤 드롭
+        const uploadSection = document.getElementById('uploadSection');
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.style.background = '#e9ecef';
+        });
+
+        uploadSection.addEventListener('dragleave', () => {
+            uploadSection.style.background = '#f8f9fa';
+        });
+
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.style.background = '#f8f9fa';
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('video/')) {
+                const url = URL.createObjectURL(file);
+                videoElement.src = url;
+                document.getElementById('videoContainer').classList.add('active');
+                document.getElementById('uploadSection').classList.add('active');
+                timepoints = [];
+                updateTimepointsList();
+                
+                if (!pose) {
+                    initPose();
+                }
+            }
+        });
+
+        // 현재 시점 태그
+        function tagCurrentTime() {
+            const currentTime = videoElement.currentTime;
+            if (!timepoints.includes(currentTime)) {
+                timepoints.push(currentTime);
+                timepoints.sort((a, b) => a - b);
+                updateTimepointsList();
+                
+                showNotification('success', `✓ ${currentTime.toFixed(2)}초 시점이 추가되었습니다.`);
+            } else {
+                showNotification('warning', '이미 추가된 시점입니다.');
+            }
+        }
+
+        // 시점 목록 업데이트
+        function updateTimepointsList() {
+            const listTitle = document.querySelector('#timepointsList h3');
+            const container = document.getElementById('timepointsContainer');
+            
+            listTitle.textContent = `태그된 시점 (${timepoints.length}개)`;
+            
+            if (timepoints.length === 0) {
+                container.innerHTML = '<p style="color: #6c757d;">추가된 시점이 없습니다.</p>';
+            } else {
+                container.innerHTML = timepoints.map(t => 
+                    `<span class="timepoint-tag">${t.toFixed(2)}초</span>`
+                ).join('');
+            }
+        }
+
+        // 전체 삭제
+        function clearAllTimepoints() {
+            if (timepoints.length > 0 && confirm('모든 시점을 삭제하시겠습니까?')) {
+                timepoints = [];
+                updateTimepointsList();
+                showNotification('info', '모든 시점이 삭제되었습니다.');
+            }
+        }
+
+        // 각도 계산 함수들
+        function calculateSegmentAngle(point1, point2) {
+            const radians = Math.atan2(point2.y - point1.y, point2.x - point1.x);
+            let angle = radians * (180 / Math.PI);
+            if (angle < 0) angle += 360;
+            return angle;
+        }
+
+        function calculateJointAngle(a, b, c) {
+            const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
+            let angle = Math.abs(radians * (180 / Math.PI));
+            if (angle > 180) angle = 360 - angle;
+            return angle;
+        }
+
+        function calculateAngles(landmarks) {
+            const angles = { absolute: {}, relative: {} };
+            
+            // 절대각도
+            if (landmarks[11] && landmarks[13]) {
+                angles.absolute['좌_상완'] = calculateSegmentAngle(landmarks[11], landmarks[13]);
+            }
+            if (landmarks[12] && landmarks[14]) {
+                angles.absolute['우_상완'] = calculateSegmentAngle(landmarks[12], landmarks[14]);
+            }
+            if (landmarks[23] && landmarks[25]) {
+                angles.absolute['좌_대퇴'] = calculateSegmentAngle(landmarks[23], landmarks[25]);
+            }
+            if (landmarks[24] && landmarks[26]) {
+                angles.absolute['우_대퇴'] = calculateSegmentAngle(landmarks[24], landmarks[26]);
+            }
+            if (landmarks[25] && landmarks[27]) {
+                angles.absolute['좌_하퇴'] = calculateSegmentAngle(landmarks[25], landmarks[27]);
+            }
+            if (landmarks[26] && landmarks[28]) {
+                angles.absolute['우_하퇴'] = calculateSegmentAngle(landmarks[26], landmarks[28]);
+            }
+            
+            // 상대각도
+            if (landmarks[11] && landmarks[13] && landmarks[15]) {
+                angles.relative['좌_팔꿈치'] = calculateJointAngle(landmarks[11], landmarks[13], landmarks[15]);
+            }
+            if (landmarks[12] && landmarks[14] && landmarks[16]) {
+                angles.relative['우_팔꿈치'] = calculateJointAngle(landmarks[12], landmarks[14], landmarks[16]);
+            }
+            if (landmarks[23] && landmarks[25] && landmarks[27]) {
+                angles.relative['좌_무릎'] = calculateJointAngle(landmarks[23], landmarks[25], landmarks[27]);
+            }
+            if (landmarks[24] && landmarks[26] && landmarks[28]) {
+                angles.relative['우_무릎'] = calculateJointAngle(landmarks[24], landmarks[26], landmarks[28]);
+            }
+            if (landmarks[11] && landmarks[23] && landmarks[25]) {
+                angles.relative['좌_엉덩이'] = calculateJointAngle(landmarks[11], landmarks[23], landmarks[25]);
+            }
+            if (landmarks[12] && landmarks[24] && landmarks[26]) {
+                angles.relative['우_엉덩이'] = calculateJointAngle(landmarks[12], landmarks[24], landmarks[26]);
+            }
+            
+            return angles;
+        }
+
+        // 분석 시작
+        async function startAnalysis() {
+            if (timepoints.length === 0) {
+                showNotification('warning', '분석할 시점을 먼저 추가하세요.');
+                return;
+            }
+
+            document.getElementById('progressBar').classList.add('active');
+            document.getElementById('loadingSpinner').classList.add('active');
+            document.getElementById('analyzeBtn').disabled = true;
+
+            const results = [];
+
+            for (let i = 0; i < timepoints.length; i++) {
+                const time = timepoints[i];
+                updateProgress((i + 1) / timepoints.length * 100, `시점 ${i + 1}/${timepoints.length} 분석 중...`);
+                
+                const result = await analyzeFrame(time);
+                results.push(result);
+                
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            displayResults(results);
+            
+            document.getElementById('progressBar').classList.remove('active');
+            document.getElementById('loadingSpinner').classList.remove('active');
+            document.getElementById('analyzeBtn').disabled = false;
+            
+            showNotification('success', '✅ 분석이 완료되었습니다!');
+        }
+
+        // 프레임 분석
+        async function analyzeFrame(time) {
+            return new Promise((resolve) => {
+                videoElement.currentTime = time;
+                
+                videoElement.onseeked = async () => {
+                    canvas.width = videoElement.videoWidth;
+                    canvas.height = videoElement.videoHeight;
+                    ctx.drawImage(videoElement, 0, 0);
+                    
+                    pose.onResults((results) => {
+                        // 포즈 그리기
+                        ctx.drawImage(videoElement, 0, 0);
+                        
+                        if (results.poseLandmarks) {
+                            drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#00FF00', lineWidth: 4});
+                            drawLandmarks(ctx, results.poseLandmarks, {color: '#FF0000', lineWidth: 2, radius: 6});
+                            
+                            const angles = calculateAngles(results.poseLandmarks);
+                            const imageUrl = canvas.toDataURL();
+                            
+                            resolve({
+                                time: time,
+                                image: imageUrl,
+                                angles: angles,
+                                detected: true
+                            });
+                        } else {
+                            const imageUrl = canvas.toDataURL();
+                            resolve({
+                                time: time,
+                                image: imageUrl,
+                                angles: null,
+                                detected: false
+                            });
+                        }
+                    });
+                    
+                    await pose.send({image: canvas});
+                };
+            });
+        }
+
+        // 진행률 업데이트
+        function updateProgress(percent, message) {
+            const fill = document.getElementById('progressFill');
+            fill.style.width = percent + '%';
+            fill.textContent = Math.round(percent) + '% - ' + message;
+        }
+
+        // 결과 표시
+        function displayResults(results) {
+            const container = document.getElementById('resultsContainer');
+            const section = document.getElementById('resultsSection');
+            
+            container.innerHTML = '';
+            
+            results.forEach((result, index) => {
+                const card = document.createElement('div');
+                card.className = 'result-card';
+                
+                let html = `
+                    <h3>시점 ${index + 1}: ${result.time.toFixed(2)}초</h3>
+                    <img src="${result.image}" class="result-image" alt="분석 결과">
+                `;
+                
+                if (result.detected && result.angles) {
+                    html += `
+                        <table class="angles-table">
+                            <tr><th>항목</th><th>각도 (°)</th></tr>
+                    `;
+                    
+                    for (let [name, value] of Object.entries(result.angles.absolute)) {
+                        html += `<tr><td>절대_${name}</td><td>${value.toFixed(2)}</td></tr>`;
+                    }
+                    for (let [name, value] of Object.entries(result.angles.relative)) {
+                        html += `<tr><td>관절_${name}</td><td>${value.toFixed(2)}</td></tr>`;
+                    }
+                    
+                    html += `</table>`;
+                } else {
+                    html += `<p style="color: #dc3545;">⚠️ 포즈를 감지하지 못했습니다.</p>`;
+                }
+                
+                card.innerHTML = html;
+                container.appendChild(card);
+            });
+            
+            section.classList.add('active');
+            section.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // 알림 표시
+        function showNotification(type, message) {
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type} notification`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // 키보드 단축키 (Space: 시점 태그)
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && videoElement.src && e.target.tagName !== 'INPUT') {
+                e.preventDefault();
+                tagCurrentTime();
+            }
+        });
+    </script>
 </body>
 </html>
