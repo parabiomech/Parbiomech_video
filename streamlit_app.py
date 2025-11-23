@@ -673,7 +673,7 @@ if uploaded_file is not None:
     
     # HTML 컴포넌트 표시
     from streamlit.components.v1 import html
-    added_time = html(video_html, height=800)
+    added_time = html(video_html, height=950)
     
     st.markdown("---")
     
