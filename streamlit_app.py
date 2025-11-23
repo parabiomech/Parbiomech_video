@@ -18,7 +18,7 @@ def check_video_codec(video_path):
     try:
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
-            return False, "비디오를 열 수 없습니다."
+            return False, "needs_conversion", "비디오를 열 수 없습니다."
         
         # 기본 정보 확인
         frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -28,16 +28,53 @@ def check_video_codec(video_path):
         ret, frame = cap.read()
         cap.release()
         
-        if not ret or frame is None:
-            return False, "비디오 코덱이 지원되지 않습니다. AV1 코덱은 현재 플랫폼에서 지원되지 않습니다.\n\nH.264 코덱으로 변환하려면 다음 명령어를 사용하세요:\nffmpeg -i input.mp4 -c:v libx264 -crf 23 -preset medium -c:a aac output.mp4"
+        if not ret:
+            return False, "needs_conversion", "비디오 코덱이 지원되지 않습니다. AV1 코덱일 가능성이 있습니다."
         
         # 프레임 크기 확인
         if frame.shape[0] == 0 or frame.shape[1] == 0:
-            return False, "비디오 프레임 크기가 유효하지 않습니다."
+            return False, "error", "비디오 프레임 크기가 유효하지 않습니다."
         
-        return True, "지원되는 형식"
+        return True, "ok", "지원되는 형식"
     except Exception as e:
-        return False, f"비디오 형식 확인 중 오류가 발생했습니다: {str(e)}"
+        return False, "error", f"비디오 형식 확인 중 오류가 발생했습니다: {str(e)}"
+
+def convert_video_to_h264(input_path, output_path):
+    """ffmpeg를 사용하여 비디오를 H.264 코덱으로 변환"""
+    import subprocess
+    
+    try:
+        # ffmpeg 명령어
+        cmd = [
+            'ffmpeg',
+            '-i', input_path,
+            '-c:v', 'libx264',
+            '-crf', '23',
+            '-preset', 'medium',
+            '-c:a', 'aac',
+            '-y',  # 덮어쓰기
+            output_path
+        ]
+        
+        # 프로세스 실행
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True
+        )
+        
+        stdout, stderr = process.communicate()
+        
+        if process.returncode == 0:
+            return True, "변환 성공"
+        else:
+            return False, f"변환 실패: {stderr}"
+            
+    except FileNotFoundError:
+        return False, "ffmpeg가 설치되어 있지 않습니다."
+    except Exception as e:
+        return False, f"변환 중 오류: {str(e)}"
 
 # 페이지 설정
 st.set_page_config(
@@ -465,22 +502,48 @@ if uploaded_file is not None:
     temp_check.write(st.session_state['original_video_bytes'])
     temp_check.close()
     
-    codec_supported, codec_message = check_video_codec(temp_check.name)
+    codec_supported, codec_status, codec_message = check_video_codec(temp_check.name)
     
-    if not codec_supported:
+    if not codec_supported and codec_status == "needs_conversion":
+        st.warning(f"""
+        ⚠️ **비디오 코덱이 지원되지 않습니다**: {codec_message}
+        
+        자동으로 H.264 코덱으로 변환을 시도합니다...
+        """)
+        
+        # 자동 변환 시도
+        converted_path = tempfile.NamedTemporaryFile(delete=False, suffix='_h264.mp4').name
+        
+        with st.spinner("비디오를 H.264 코덱으로 변환 중... (시간이 걸릴 수 있습니다)"):
+            conversion_success, conversion_message = convert_video_to_h264(temp_check.name, converted_path)
+        
+        if conversion_success:
+            st.success("✅ 비디오 변환 완료!")
+            # 변환된 파일로 교체
+            try:
+                os.unlink(temp_check.name)
+            except:
+                pass
+            temp_check.name = converted_path
+        else:
+            st.error(f"""
+            ❌ **자동 변환 실패**: {conversion_message}
+            
+            **수동 변환 방법 (ffmpeg 사용):**
+            ```bash
+            ffmpeg -i input.mp4 -c:v libx264 -crf 23 -preset medium -c:a aac output.mp4
+            ```
+            
+            또는 온라인 변환 도구를 사용하세요 (예: CloudConvert, FreeConvert 등)
+            """)
+            try:
+                os.unlink(temp_check.name)
+            except:
+                pass
+            st.stop()
+    elif not codec_supported:
         st.error(f"""
         ⚠️ **비디오 형식 오류**: {codec_message}
-        
-        **해결 방법:**
-        - AV1 코덱 비디오는 지원되지 않습니다
-        - H.264 (AVC) 또는 H.265 (HEVC) 코덱으로 변환해주세요
-        
-        **변환 방법 (ffmpeg 사용):**
-        ```bash
-        ffmpeg -i input.mp4 -c:v libx264 -crf 23 -preset medium -c:a aac output.mp4
-        ```
-        
-        또는 온라인 변환 도구를 사용하세요 (예: CloudConvert, FreeConvert 등)
         """)
         try:
             os.unlink(temp_check.name)
