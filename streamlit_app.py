@@ -607,7 +607,7 @@ if uploaded_file is not None:
             <button class="add-btn" onclick="addCurrentTime()">➕ 현재 시점 추가</button>
         </div>
         <div class="timepoint-list">
-            추가된 시점: <span id="timepointDisplay">{current_timepoints}</span>
+            추가된 시점 (<span id="timepointCount">{len(st.session_state['timepoints'])}</span>개): <span id="timepointDisplay">{current_timepoints}</span>
         </div>
     </div>
     
@@ -615,6 +615,7 @@ if uploaded_file is not None:
         const video = document.getElementById('mainVideo');
         const timeDisplay = document.getElementById('currentTime');
         const timepointDisplay = document.getElementById('timepointDisplay');
+        const timepointCount = document.getElementById('timepointCount');
         
         // 시점 목록 (Python session state와 동기화)
         let timepoints = {st.session_state['timepoints']};
@@ -626,6 +627,7 @@ if uploaded_file is not None:
         
         // 시점 목록 업데이트
         function updateTimepointDisplay() {{
+            timepointCount.textContent = timepoints.length;
             if (timepoints.length > 0) {{
                 timepointDisplay.textContent = timepoints.map(t => t.toFixed(2) + '초').join(', ');
             }} else {{
@@ -686,78 +688,39 @@ if uploaded_file is not None:
     
     st.markdown("---")
     
-    # 시점 관리 섹션
-    st.markdown("### 📋 시점 관리")
-    
-    # 현재 시점 목록
+    # 시점이 있으면 분석 버튼, 없으면 안내 메시지
     if st.session_state['timepoints']:
         st.success(f"✅ {len(st.session_state['timepoints'])}개의 시점이 추가되었습니다")
         
-        # 시점 목록을 카드 형식으로 표시
-        cols = st.columns(6)
-        for idx, time_point in enumerate(st.session_state['timepoints']):
-            with cols[idx % 6]:
-                if st.button(f"🗑️ {time_point:.2f}초", key=f"del_{idx}", use_container_width=True):
-                    st.session_state['timepoints'].remove(time_point)
-                    st.rerun()
-        
-        # 전체 삭제 버튼
-        if st.button("🗑️ 전체 삭제", use_container_width=False, type="secondary"):
-            st.session_state['timepoints'] = []
-            st.rerun()
-    else:
-        st.info("📹 영상을 보며 원하는 시점에서 '➕ 시점 추가' 버튼을 클릭하세요")
-    
-    # 수동 입력 옵션 (접기)
-    with st.expander("⌨️ 수동으로 시점 입력하기", expanded=False):
         col1, col2 = st.columns([3, 1])
         
         with col1:
-            manual_time = st.number_input(
-                "시점 (초)",
-                min_value=0.0,
-                max_value=total_time,
-                value=0.0,
-                step=0.1,
-                key="manual_time_input"
-            )
+            if st.button("🔍 분석 시작", type="primary", use_container_width=True):
+                # uploaded_file을 다시 읽기
+                uploaded_file.seek(0)
+                
+                with st.spinner("분석 중... 잠시만 기다려주세요."):
+                    timepoint_results, df_tracking, output_video_path, fps_result, width, height = process_video(
+                        uploaded_file,
+                        st.session_state['timepoints'],
+                        confidence_threshold
+                    )
+                    
+                    # 결과를 세션 상태에 저장
+                    st.session_state['timepoint_results'] = timepoint_results
+                    st.session_state['df_tracking'] = df_tracking
+                    st.session_state['output_video_path'] = output_video_path
+                    st.session_state['fps'] = fps_result
+                    st.session_state['video_info'] = f"{width}x{height} @ {fps_result:.1f}fps"
+                
+                st.success("✅ 분석 완료!")
         
         with col2:
-            st.write("")  # 공간 확보
-            st.write("")  # 공간 확보
-            if st.button("추가", use_container_width=True, type="primary"):
-                if manual_time not in st.session_state['timepoints']:
-                    st.session_state['timepoints'].append(manual_time)
-                    st.session_state['timepoints'].sort()
-                    st.rerun()
-                else:
-                    st.warning("중복 시점")
-    
-    st.markdown("---")
-    
-    # 분석 버튼
-    if st.session_state['timepoints']:
-        if st.button("🔍 분석 시작", type="primary", use_container_width=True):
-            # uploaded_file을 다시 읽기
-            uploaded_file.seek(0)
-            
-            with st.spinner("분석 중... 잠시만 기다려주세요."):
-                timepoint_results, df_tracking, output_video_path, fps_result, width, height = process_video(
-                    uploaded_file,
-                    st.session_state['timepoints'],
-                    confidence_threshold
-                )
-                
-                # 결과를 세션 상태에 저장
-                st.session_state['timepoint_results'] = timepoint_results
-                st.session_state['df_tracking'] = df_tracking
-                st.session_state['output_video_path'] = output_video_path
-                st.session_state['fps'] = fps_result
-                st.session_state['video_info'] = f"{width}x{height} @ {fps_result:.1f}fps"
-            
-            st.success("✅ 분석 완료!")
+            if st.button("🗑️ 전체 삭제", use_container_width=True):
+                st.session_state['timepoints'] = []
+                st.rerun()
     else:
-        st.warning("⚠️ 먼저 분석할 시점을 추가해주세요.")
+        st.info("📹 영상을 재생하며 분석할 시점에서 '➕ 현재 시점 추가' 버튼을 클릭하거나 스페이스바를 누르세요")
     
     # 결과 표시
     if 'timepoint_results' in st.session_state and st.session_state['timepoint_results']:
