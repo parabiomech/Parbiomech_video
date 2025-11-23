@@ -570,7 +570,21 @@ if uploaded_file is not None:
     video_base64 = base64.b64encode(st.session_state['original_video_bytes']).decode()
     
     # HTML5 비디오 플레이어와 시점 태그 통합
-    st.markdown("### 📹 원본 영상")
+    st.markdown("### 📹 원본 영상 및 시점 추가")
+    
+    # 시점 추가를 위한 입력 필드 (숨겨진 상태로)
+    added_time = st.number_input(
+        "시점",
+        min_value=0.0,
+        max_value=total_time,
+        value=0.0,
+        step=0.01,
+        key="video_timepoint_input",
+        label_visibility="collapsed"
+    )
+    
+    # 현재 시점 리스트 표시용
+    timepoints_str = ','.join([str(t) for t in st.session_state['timepoints']])
     
     video_html = f"""
     <div style="margin-bottom: 20px;">
@@ -594,13 +608,18 @@ if uploaded_file is not None:
                 ➕ 시점 추가
             </button>
         </div>
-        <div id="timepointsList" style="margin-top: 10px;"></div>
+        <div id="timepointsList" style="margin-top: 10px;">
+            <div id="currentList" style="font-size: 14px; color: #666;">
+                추가된 시점: <span id="points">{timepoints_str if timepoints_str else '없음'}</span>
+            </div>
+        </div>
     </div>
     
     <script>
         const video = document.getElementById('videoPlayer');
         const slider = document.getElementById('timeSlider');
         const currentTimeDisplay = document.getElementById('currentTime');
+        let timepoints = {st.session_state['timepoints']};
         
         // 비디오 시간 업데이트
         video.addEventListener('timeupdate', function() {{
@@ -614,72 +633,102 @@ if uploaded_file is not None:
             currentTimeDisplay.textContent = slider.value;
         }});
         
+        // 시점 목록 업데이트
+        function updateTimepointsList() {{
+            const pointsSpan = document.getElementById('points');
+            if (timepoints.length > 0) {{
+                pointsSpan.textContent = timepoints.map(t => t.toFixed(2) + '초').join(', ');
+            }} else {{
+                pointsSpan.textContent = '없음';
+            }}
+        }}
+        
         // 시점 추가 함수
         function addTimepoint() {{
             const currentTime = parseFloat(video.currentTime.toFixed(2));
             
-            // Streamlit과 통신하기 위해 window.parent로 메시지 전송
-            window.parent.postMessage({{
-                type: 'streamlit:setComponentValue',
-                key: 'add_timepoint',
-                value: currentTime
-            }}, '*');
-            
-            alert('시점 ' + currentTime + '초가 추가되었습니다.');
+            // 중복 체크
+            if (!timepoints.includes(currentTime)) {{
+                timepoints.push(currentTime);
+                timepoints.sort((a, b) => a - b);
+                updateTimepointsList();
+                
+                // Streamlit 입력 필드에 값 설정하여 rerun 트리거
+                const input = window.parent.document.querySelector('[data-testid="stNumberInput"] input');
+                if (input) {{
+                    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.parent.HTMLInputElement.prototype, 'value').set;
+                    nativeInputValueSetter.call(input, currentTime);
+                    const event = new Event('input', {{ bubbles: true }});
+                    input.dispatchEvent(event);
+                }}
+                
+                alert('시점 ' + currentTime + '초가 추가되었습니다!');
+            }} else {{
+                alert('이미 추가된 시점입니다.');
+            }}
         }}
+        
+        // 초기 목록 표시
+        updateTimepointsList();
     </script>
     """
     
-    st.components.v1.html(video_html, height=600, scrolling=False)
+    st.components.v1.html(video_html, height=650, scrolling=False)
+    
+    # 비디오에서 추가한 시점 처리
+    if added_time > 0 and added_time not in st.session_state['timepoints']:
+        st.session_state['timepoints'].append(added_time)
+        st.session_state['timepoints'].sort()
+        st.rerun()
     
     st.markdown("---")
     
-    # 시점 추가 처리
-    if 'last_added_time' not in st.session_state:
-        st.session_state['last_added_time'] = None
-    
-    # 수동 시점 추가 인터페이스 (백업용)
+    # 시점 관리 섹션
     st.markdown("### 📋 시점 관리")
-    
-    col1, col2, col3 = st.columns([2, 1, 1])
-    
-    with col1:
-        manual_time = st.number_input(
-            "수동 시점 입력 (초)",
-            min_value=0.0,
-            max_value=total_time,
-            value=0.0,
-            step=0.1,
-            key="manual_time_input"
-        )
-    
-    with col2:
-        if st.button("➕ 추가", use_container_width=True, type="primary"):
-            if manual_time not in st.session_state['timepoints']:
-                st.session_state['timepoints'].append(manual_time)
-                st.session_state['timepoints'].sort()
-                st.success(f"{manual_time:.2f}초 추가")
-            else:
-                st.warning("중복 시점")
-    
-    with col3:
-        if st.button("🗑️ 전체삭제", use_container_width=True):
-            st.session_state['timepoints'] = []
-            st.success("전체 삭제됨")
     
     # 현재 시점 목록
     if st.session_state['timepoints']:
-        st.markdown("**📋 지정된 시점**")
+        st.success(f"✅ {len(st.session_state['timepoints'])}개의 시점이 추가되었습니다")
         
-        # 한 줄에 여러 개 표시
-        cols = st.columns(5)
+        # 시점 목록을 카드 형식으로 표시
+        cols = st.columns(6)
         for idx, time_point in enumerate(st.session_state['timepoints']):
-            with cols[idx % 5]:
-                if st.button(f"❌ {time_point:.2f}초", key=f"del_{idx}", use_container_width=True):
+            with cols[idx % 6]:
+                if st.button(f"🗑️ {time_point:.2f}초", key=f"del_{idx}", use_container_width=True):
                     st.session_state['timepoints'].remove(time_point)
                     st.rerun()
+        
+        # 전체 삭제 버튼
+        if st.button("🗑️ 전체 삭제", use_container_width=False, type="secondary"):
+            st.session_state['timepoints'] = []
+            st.rerun()
     else:
-        st.info("영상을 보며 원하는 시점을 추가하세요")
+        st.info("📹 영상을 보며 원하는 시점에서 '➕ 시점 추가' 버튼을 클릭하세요")
+    
+    # 수동 입력 옵션 (접기)
+    with st.expander("⌨️ 수동으로 시점 입력하기", expanded=False):
+        col1, col2 = st.columns([3, 1])
+        
+        with col1:
+            manual_time = st.number_input(
+                "시점 (초)",
+                min_value=0.0,
+                max_value=total_time,
+                value=0.0,
+                step=0.1,
+                key="manual_time_input"
+            )
+        
+        with col2:
+            st.write("")  # 공간 확보
+            st.write("")  # 공간 확보
+            if st.button("추가", use_container_width=True, type="primary"):
+                if manual_time not in st.session_state['timepoints']:
+                    st.session_state['timepoints'].append(manual_time)
+                    st.session_state['timepoints'].sort()
+                    st.rerun()
+                else:
+                    st.warning("중복 시점")
     
     st.markdown("---")
     
