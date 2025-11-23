@@ -673,17 +673,23 @@ if uploaded_file is not None:
     
     # HTML 컴포넌트 표시
     from streamlit.components.v1 import html
-    added_time = html(video_html, height=950)
+    added_time = html(video_html, height=900)
     
     st.markdown("---")
+    
+    # 버튼 캔버스
+    st.markdown("### 🎬 분석 컨트롤")
     
     # 시점이 있으면 분석 버튼, 없으면 안내 메시지
     if st.session_state['timepoints']:
         st.success(f"✅ {len(st.session_state['timepoints'])}개의 시점이 추가되었습니다")
         
-        col1, col2 = st.columns([3, 1])
+        col1, col2, col3 = st.columns([2, 1, 1])
         
         with col1:
+            st.write("")  # 간격
+        
+        with col2:
             if st.button("🔍 분석 시작", type="primary", use_container_width=True, key="analyze_btn"):
                 # uploaded_file을 다시 읽기
                 uploaded_file.seek(0)
@@ -704,7 +710,7 @@ if uploaded_file is not None:
                 
                 st.success("✅ 분석 완료!")
         
-        with col2:
+        with col3:
             if st.button("🗑️ 전체 삭제", use_container_width=True, key="delete_all_btn"):
                 st.session_state['timepoints'] = []
                 st.rerun()
