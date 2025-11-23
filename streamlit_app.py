@@ -20,16 +20,24 @@ def check_video_codec(video_path):
         if not cap.isOpened():
             return False, "비디오를 열 수 없습니다."
         
+        # 기본 정보 확인
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        
         # 첫 프레임을 읽어서 확인
         ret, frame = cap.read()
         cap.release()
         
-        if not ret:
-            return False, "비디오 코덱이 지원되지 않습니다. AV1 코덱은 현재 플랫폼에서 지원되지 않습니다."
+        if not ret or frame is None:
+            return False, "비디오 코덱이 지원되지 않습니다. AV1 코덱은 현재 플랫폼에서 지원되지 않습니다.\n\nH.264 코덱으로 변환하려면 다음 명령어를 사용하세요:\nffmpeg -i input.mp4 -c:v libx264 -crf 23 -preset medium -c:a aac output.mp4"
+        
+        # 프레임 크기 확인
+        if frame.shape[0] == 0 or frame.shape[1] == 0:
+            return False, "비디오 프레임 크기가 유효하지 않습니다."
         
         return True, "지원되는 형식"
     except Exception as e:
-        return False, f"비디오 형식 확인 중 오류가 발생했습니다."
+        return False, f"비디오 형식 확인 중 오류가 발생했습니다: {str(e)}"
 
 # 페이지 설정
 st.set_page_config(
