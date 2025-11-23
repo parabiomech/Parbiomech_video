@@ -6,7 +6,6 @@ import tempfile
 import os
 import pandas as pd
 import plotly.graph_objects as go
-import base64
 
 # MediaPipe 초기화
 mp_pose = mp.solutions.pose
@@ -20,24 +19,16 @@ def check_video_codec(video_path):
         if not cap.isOpened():
             return False, "needs_conversion", "비디오를 열 수 없습니다."
         
-        # 기본 정보 확인
-        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        
         # 첫 프레임을 읽어서 확인
         ret, frame = cap.read()
         cap.release()
         
         if not ret:
-            return False, "needs_conversion", "비디오 코덱이 지원되지 않습니다. AV1 코덱일 가능성이 있습니다."
-        
-        # 프레임 크기 확인
-        if frame.shape[0] == 0 or frame.shape[1] == 0:
-            return False, "error", "비디오 프레임 크기가 유효하지 않습니다."
+            return False, "needs_conversion", "비디오 코덱이 지원되지 않습니다."
         
         return True, "ok", "지원되는 형식"
     except Exception as e:
-        return False, "error", f"비디오 형식 확인 중 오류가 발생했습니다: {str(e)}"
+        return False, "error", f"비디오 확인 오류: {str(e)}"
 
 def convert_video_to_h264(input_path, output_path):
     """ffmpeg를 사용하여 비디오를 H.264 코덱으로 변환"""
@@ -80,7 +71,8 @@ def convert_video_to_h264(input_path, output_path):
 st.set_page_config(
     page_title="Parbiomech Video Analysis",
     page_icon="🎯",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
 def calculate_segment_angle(point1, point2):
@@ -343,7 +335,9 @@ def process_video(video_file, timepoints, confidence_threshold=0.5):
     with mp_pose.Pose(
         min_detection_confidence=confidence_threshold,
         min_tracking_confidence=confidence_threshold,
-        model_complexity=1
+        model_complexity=0,
+        enable_segmentation=False,
+        smooth_landmarks=True
     ) as pose:
         
         progress_bar = st.progress(0)
@@ -566,125 +560,14 @@ if uploaded_file is not None:
     
     st.info(f"📹 비디오 정보: {total_time:.2f}초 ({total_frames} 프레임, {fps:.1f}fps)")
     
-    # 비디오를 base64로 인코딩
-    video_base64 = base64.b64encode(st.session_state['original_video_bytes']).decode()
-    
-    # HTML5 비디오 플레이어와 시점 태그 통합
-    st.markdown("### 📹 원본 영상 및 시점 추가")
-    
-    # 시점 추가를 위한 입력 필드 (숨겨진 상태로)
-    added_time = st.number_input(
-        "시점",
-        min_value=0.0,
-        max_value=total_time,
-        value=0.0,
-        step=0.01,
-        key="video_timepoint_input",
-        label_visibility="collapsed"
-    )
-    
-    # 현재 시점 리스트 표시용
-    timepoints_str = ','.join([str(t) for t in st.session_state['timepoints']])
-    
-    video_html = f"""
-    <div style="margin-bottom: 20px;">
-        <video id="videoPlayer" width="100%" controls>
-            <source src="data:video/mp4;base64,{video_base64}" type="video/mp4">
-            Your browser does not support the video tag.
-        </video>
-    </div>
-    
-    <div style="margin-top: 20px; padding: 15px; background-color: #f0f2f6; border-radius: 10px;">
-        <h4>⏱️ 시점 태그</h4>
-        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
-            <div style="flex: 1;">
-                <label style="font-size: 14px; font-weight: bold;">현재 시점: <span id="currentTime">0.00</span>초</label>
-                <input type="range" id="timeSlider" min="0" max="{total_time}" step="0.1" value="0" 
-                       style="width: 100%; margin-top: 5px;" />
-            </div>
-            <button onclick="addTimepoint()" 
-                    style="padding: 10px 20px; background-color: #FF4B4B; color: white; border: none; 
-                           border-radius: 5px; cursor: pointer; font-weight: bold;">
-                ➕ 시점 추가
-            </button>
-        </div>
-        <div id="timepointsList" style="margin-top: 10px;">
-            <div id="currentList" style="font-size: 14px; color: #666;">
-                추가된 시점: <span id="points">{timepoints_str if timepoints_str else '없음'}</span>
-            </div>
-        </div>
-    </div>
-    
-    <script>
-        const video = document.getElementById('videoPlayer');
-        const slider = document.getElementById('timeSlider');
-        const currentTimeDisplay = document.getElementById('currentTime');
-        let timepoints = {st.session_state['timepoints']};
-        
-        // 비디오 시간 업데이트
-        video.addEventListener('timeupdate', function() {{
-            slider.value = video.currentTime;
-            currentTimeDisplay.textContent = video.currentTime.toFixed(2);
-        }});
-        
-        // 슬라이더 변경 시 비디오 이동
-        slider.addEventListener('input', function() {{
-            video.currentTime = slider.value;
-            currentTimeDisplay.textContent = slider.value;
-        }});
-        
-        // 시점 목록 업데이트
-        function updateTimepointsList() {{
-            const pointsSpan = document.getElementById('points');
-            if (timepoints.length > 0) {{
-                pointsSpan.textContent = timepoints.map(t => t.toFixed(2) + '초').join(', ');
-            }} else {{
-                pointsSpan.textContent = '없음';
-            }}
-        }}
-        
-        // 시점 추가 함수
-        function addTimepoint() {{
-            const currentTime = parseFloat(video.currentTime.toFixed(2));
-            
-            // 중복 체크
-            if (!timepoints.includes(currentTime)) {{
-                timepoints.push(currentTime);
-                timepoints.sort((a, b) => a - b);
-                updateTimepointsList();
-                
-                // Streamlit 입력 필드에 값 설정하여 rerun 트리거
-                const input = window.parent.document.querySelector('[data-testid="stNumberInput"] input');
-                if (input) {{
-                    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.parent.HTMLInputElement.prototype, 'value').set;
-                    nativeInputValueSetter.call(input, currentTime);
-                    const event = new Event('input', {{ bubbles: true }});
-                    input.dispatchEvent(event);
-                }}
-                
-                alert('시점 ' + currentTime + '초가 추가되었습니다!');
-            }} else {{
-                alert('이미 추가된 시점입니다.');
-            }}
-        }}
-        
-        // 초기 목록 표시
-        updateTimepointsList();
-    </script>
-    """
-    
-    st.components.v1.html(video_html, height=650, scrolling=False)
-    
-    # 비디오에서 추가한 시점 처리
-    if added_time > 0 and added_time not in st.session_state['timepoints']:
-        st.session_state['timepoints'].append(added_time)
-        st.session_state['timepoints'].sort()
-        st.rerun()
+    # 비디오 표시 (간단한 방식)
+    st.markdown("### 📹 원본 영상")
+    st.video(st.session_state['original_video_bytes'])
     
     st.markdown("---")
     
     # 시점 관리 섹션
-    st.markdown("### 📋 시점 관리")
+    st.markdown("### 📋 시점 태그")
     
     # 현재 시점 목록
     if st.session_state['timepoints']:
