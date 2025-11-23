@@ -476,87 +476,69 @@ if 'timepoints' not in st.session_state:
 uploaded_file = st.file_uploader(
     "비디오 파일을 업로드하세요",
     type=['mp4', 'avi', 'mov', 'mkv'],
-    help="H.264 또는 H.265 코덱을 사용하는 비디오를 선택하세요. AV1 코덱은 지원되지 않습니다."
+    help="H.264 또는 H.265 코덱을 사용하는 비디오를 선택하세요."
 )
 
 if uploaded_file is not None:
-    # 원본 비디오 표시
-    st.subheader("📹 원본 영상 및 시점 태그")
-    
-    # 비디오를 session state에 저장
-    if 'original_video_bytes' not in st.session_state or st.session_state.get('uploaded_file_name') != uploaded_file.name:
-        video_bytes = uploaded_file.read()
-        st.session_state['original_video_bytes'] = video_bytes
-        st.session_state['uploaded_file_name'] = uploaded_file.name
-        st.session_state['timepoints'] = []  # 새 비디오 업로드 시 시점 초기화
-        uploaded_file.seek(0)  # 파일 포인터를 처음으로 되돌림
-    
-    # 비디오 코덱 확인
-    temp_check = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-    temp_check.write(st.session_state['original_video_bytes'])
-    temp_check.close()
-    
-    codec_supported, codec_status, codec_message = check_video_codec(temp_check.name)
-    
-    if not codec_supported and codec_status == "needs_conversion":
-        st.warning(f"""
-        ⚠️ **비디오 코덱이 지원되지 않습니다**: {codec_message}
+    # 비디오를 session state에 저장 (한 번만 처리)
+    if 'uploaded_file_name' not in st.session_state or st.session_state.get('uploaded_file_name') != uploaded_file.name:
         
-        자동으로 H.264 코덱으로 변환을 시도합니다...
-        """)
-        
-        # 자동 변환 시도
-        converted_path = tempfile.NamedTemporaryFile(delete=False, suffix='_h264.mp4').name
-        
-        with st.spinner("비디오를 H.264 코덱으로 변환 중... (시간이 걸릴 수 있습니다)"):
-            conversion_success, conversion_message = convert_video_to_h264(temp_check.name, converted_path)
-        
-        if conversion_success:
-            st.success("✅ 비디오 변환 완료!")
-            # 변환된 파일로 교체
-            try:
-                os.unlink(temp_check.name)
-            except:
-                pass
-            temp_check.name = converted_path
-        else:
-            st.error(f"""
-            ❌ **자동 변환 실패**: {conversion_message}
+        with st.spinner("비디오를 불러오는 중..."):
+            video_bytes = uploaded_file.read()
             
-            **수동 변환 방법 (ffmpeg 사용):**
-            ```bash
-            ffmpeg -i input.mp4 -c:v libx264 -crf 23 -preset medium -c:a aac output.mp4
-            ```
+            # 임시 파일로 저장하여 정보 추출
+            temp_check = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+            temp_check.write(video_bytes)
+            temp_check.close()
             
-            또는 온라인 변환 도구를 사용하세요 (예: CloudConvert, FreeConvert 등)
-            """)
-            try:
+            # 코덱 체크
+            codec_supported, codec_status, codec_message = check_video_codec(temp_check.name)
+            
+            if not codec_supported and codec_status == "needs_conversion":
+                st.warning("⚠️ 비디오 코덱 변환 중...")
+                converted_path = tempfile.NamedTemporaryFile(delete=False, suffix='_h264.mp4').name
+                conversion_success, conversion_message = convert_video_to_h264(temp_check.name, converted_path)
+                
+                if conversion_success:
+                    st.success("✅ 변환 완료!")
+                    os.unlink(temp_check.name)
+                    temp_check.name = converted_path
+                    # 변환된 파일 읽기
+                    with open(converted_path, 'rb') as f:
+                        video_bytes = f.read()
+                else:
+                    st.error(f"❌ 변환 실패: {conversion_message}")
+                    os.unlink(temp_check.name)
+                    st.stop()
+            elif not codec_supported:
+                st.error(f"⚠️ 비디오 형식 오류: {codec_message}")
                 os.unlink(temp_check.name)
-            except:
-                pass
-            st.stop()
-    elif not codec_supported:
-        st.error(f"""
-        ⚠️ **비디오 형식 오류**: {codec_message}
-        """)
-        try:
+                st.stop()
+            
+            # 비디오 정보 추출
+            cap = cv2.VideoCapture(temp_check.name)
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            total_time = total_frames / fps if fps > 0 else 0
+            cap.release()
+            
+            # 임시 파일 삭제
             os.unlink(temp_check.name)
-        except:
-            pass
-        st.stop()
+            
+            # Session state에 저장
+            st.session_state['original_video_bytes'] = video_bytes
+            st.session_state['uploaded_file_name'] = uploaded_file.name
+            st.session_state['timepoints'] = []
+            st.session_state['fps'] = fps
+            st.session_state['total_frames'] = total_frames
+            st.session_state['total_time'] = total_time
+            
+            uploaded_file.seek(0)
     
-    # 비디오 길이 계산
-    cap = cv2.VideoCapture(temp_check.name)
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    total_time = total_frames / fps if fps > 0 else 0
-    cap.release()
-    
-    # 임시 파일 삭제
-    try:
-        os.unlink(temp_check.name)
-    except:
-        pass
+    # Session state에서 정보 가져오기
+    fps = st.session_state['fps']
+    total_frames = st.session_state['total_frames']
+    total_time = st.session_state['total_time']
     
     st.info(f"📹 비디오 정보: {total_time:.2f}초 ({total_frames} 프레임, {fps:.1f}fps)")
     
