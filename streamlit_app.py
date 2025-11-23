@@ -673,18 +673,7 @@ if uploaded_file is not None:
     
     # HTML 컴포넌트 표시
     from streamlit.components.v1 import html
-    added_time = html(video_html, height=600)
-    
-    # JavaScript에서 추가된 시점 처리
-    if added_time is not None:
-        try:
-            time_value = float(added_time)
-            if time_value > 0 and time_value not in st.session_state['timepoints']:
-                st.session_state['timepoints'].append(time_value)
-                st.session_state['timepoints'].sort()
-                st.rerun()
-        except (ValueError, TypeError):
-            pass
+    added_time = html(video_html, height=800)
     
     st.markdown("---")
     
@@ -695,7 +684,7 @@ if uploaded_file is not None:
         col1, col2 = st.columns([3, 1])
         
         with col1:
-            if st.button("🔍 분석 시작", type="primary", use_container_width=True):
+            if st.button("🔍 분석 시작", type="primary", use_container_width=True, key="analyze_btn"):
                 # uploaded_file을 다시 읽기
                 uploaded_file.seek(0)
                 
@@ -716,7 +705,7 @@ if uploaded_file is not None:
                 st.success("✅ 분석 완료!")
         
         with col2:
-            if st.button("🗑️ 전체 삭제", use_container_width=True):
+            if st.button("🗑️ 전체 삭제", use_container_width=True, key="delete_all_btn"):
                 st.session_state['timepoints'] = []
                 st.rerun()
     else:
