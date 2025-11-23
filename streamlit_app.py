@@ -674,11 +674,15 @@ if uploaded_file is not None:
     added_time = html(video_html, height=600)
     
     # JavaScript에서 추가된 시점 처리
-    if added_time is not None and added_time > 0:
-        if added_time not in st.session_state['timepoints']:
-            st.session_state['timepoints'].append(added_time)
-            st.session_state['timepoints'].sort()
-            st.rerun()
+    if added_time is not None:
+        try:
+            time_value = float(added_time)
+            if time_value > 0 and time_value not in st.session_state['timepoints']:
+                st.session_state['timepoints'].append(time_value)
+                st.session_state['timepoints'].sort()
+                st.rerun()
+        except (ValueError, TypeError):
+            pass
     
     st.markdown("---")
     
