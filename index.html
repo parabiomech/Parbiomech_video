@@ -3,14 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Parbiomech Video Analysis</title>
+    <title>Parbiomech Video Analysis - 시점 & 구간 & 스키 분석</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -19,12 +15,11 @@
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
             background: white;
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
         }
 
         .header {
@@ -32,21 +27,47 @@
             color: white;
             padding: 30px;
             text-align: center;
+            border-radius: 20px 20px 0 0;
         }
 
-        .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { font-size: 1.1em; opacity: 0.95; }
+
+        /* 사용 가이드 */
+        .guide-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
         }
 
-        .header p {
+        .guide-box h4 {
+            color: #1976D2;
+            margin-bottom: 12px;
             font-size: 1.2em;
-            opacity: 0.9;
         }
 
-        .main-content {
-            padding: 30px;
+        .guide-box ul {
+            margin-left: 20px;
+            line-height: 1.8;
         }
+
+        .guide-box li {
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        .guide-box kbd {
+            background: #f4f4f4;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            padding: 2px 6px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        .main-content { padding: 30px; }
 
         .upload-section {
             background: #f8f9fa;
@@ -59,24 +80,10 @@
             transition: all 0.3s;
         }
 
-        .upload-section:hover {
-            background: #e9ecef;
-            border-color: #764ba2;
-        }
+        .upload-section:hover { background: #e9ecef; border-color: #764ba2; }
 
-        .upload-section.active {
-            background: #d4edda;
-            border-color: #28a745;
-        }
-
-        .video-container {
-            display: none;
-            margin-bottom: 30px;
-        }
-
-        .video-container.active {
-            display: block;
-        }
+        .video-container { display: none; margin-bottom: 30px; }
+        .video-container.active { display: block; }
 
         video {
             width: 100%;
@@ -87,7 +94,7 @@
 
         .controls {
             display: flex;
-            gap: 15px;
+            gap: 10px;
             margin-top: 20px;
             flex-wrap: wrap;
         }
@@ -100,9 +107,6 @@
             font-weight: bold;
             cursor: pointer;
             transition: all 0.3s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
         }
 
         .btn-primary {
@@ -115,38 +119,84 @@
             box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
         }
 
-        .btn-success {
-            background: #28a745;
-            color: white;
+        .btn-success { background: #28a745; color: white; }
+        .btn-success:hover { background: #218838; }
+        
+        .btn-warning { background: #ffc107; color: #000; }
+        .btn-warning:hover { background: #e0a800; }
+        
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #c82333; }
+        
+        .btn-info { background: #17a2b8; color: white; }
+        .btn-info:hover { background: #138496; }
+
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .mode-selector {
+            background: linear-gradient(135deg, #e9ecef 0%, #f8f9fa 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 2px solid #667eea;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
 
-        .btn-success:hover {
-            background: #218838;
+        .mode-selector h4 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.1em;
         }
 
-        .btn-danger {
-            background: #dc3545;
-            color: white;
+        .mode-options {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
         }
 
-        .btn-danger:hover {
-            background: #c82333;
+        .mode-option {
+            display: flex;
+            align-items: center;
+            background: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid #dee2e6;
         }
 
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
+        .mode-option:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.2);
         }
 
-        .timepoints-list {
+        .mode-option input[type="radio"] {
+            margin-right: 8px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .mode-option label {
+            font-weight: bold;
+            cursor: pointer;
+            margin: 0;
+            font-size: 1.05em;
+        }
+
+        .mode-option input[type="radio"]:checked + label {
+            color: #667eea;
+        }
+
+        .tags-section {
             background: #f8f9fa;
             border-radius: 10px;
             padding: 20px;
             margin-bottom: 20px;
-            min-height: 100px;
         }
 
-        .timepoint-tag {
+        .tag-item {
             display: inline-block;
             background: #667eea;
             color: white;
@@ -156,14 +206,48 @@
             font-size: 14px;
         }
 
+        .tag-item.interval {
+            background: #28a745;
+        }
+
+        .tag-item.interval-start {
+            background: #ffc107;
+            color: #000;
+        }
+
+        .tag-item.interval-end {
+            background: #dc3545;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e9ecef;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .progress-bar.active { display: block; }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
         .results-section {
             display: none;
             margin-top: 30px;
         }
 
-        .results-section.active {
-            display: block;
-        }
+        .results-section.active { display: block; }
 
         .result-card {
             background: white;
@@ -174,10 +258,38 @@
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
+        .image-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .image-box {
+            text-align: center;
+        }
+
+        .image-box h5 {
+            margin-bottom: 8px;
+            color: #495057;
+        }
+
         .result-image {
             width: 100%;
-            border-radius: 10px;
-            margin-bottom: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .result-image:hover { transform: scale(1.02); }
+
+        .result-canvas {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            border: 2px solid #e5e7eb;
+            cursor: pointer;
+            display: block;
         }
 
         .angles-table {
@@ -199,34 +311,32 @@
             font-weight: bold;
         }
 
-        .angles-table tr:hover {
-            background: #f8f9fa;
+        .angles-table tr:hover { background: #f8f9fa; }
+
+        .angles-table tbody tr {
+            cursor: pointer;
+            transition: all 0.2s;
         }
 
-        .progress-bar {
-            width: 100%;
-            height: 30px;
+        .angles-table tbody tr:hover {
             background: #e9ecef;
-            border-radius: 15px;
-            overflow: hidden;
-            margin: 20px 0;
-            display: none;
+            transform: translateX(3px);
         }
 
-        .progress-bar.active {
-            display: block;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            transition: width 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
+        .angles-table tbody tr.highlighted {
+            background: #fff3cd;
             font-weight: bold;
         }
+
+        .graph-container {
+            margin: 30px 0;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        canvas { max-height: 400px; }
 
         .loading-spinner {
             display: none;
@@ -234,9 +344,7 @@
             padding: 20px;
         }
 
-        .loading-spinner.active {
-            display: block;
-        }
+        .loading-spinner.active { display: block; }
 
         .spinner {
             border: 4px solid #f3f3f3;
@@ -253,63 +361,50 @@
             100% { transform: rotate(360deg); }
         }
 
-        canvas {
-            display: none;
-        }
-
-        .alert {
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        .alert-info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .alert-warning {
-            background: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeeba;
-        }
-
         .notification {
             position: fixed;
             top: 20px;
             right: 20px;
             z-index: 9999;
             min-width: 300px;
+            padding: 15px;
+            border-radius: 8px;
             animation: slideIn 0.3s ease-out;
         }
 
         @keyframes slideIn {
-            from {
-                transform: translateX(400px);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
+
+        .alert { padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-warning { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .alert-info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>🎯 Parbiomech Video Analysis</h1>
-            <p>MediaPipe 기반 웹 포즈 분석 시스템</p>
+            <p>시점 분석 & 구간 분석 & 스키 분석 시스템</p>
         </div>
 
         <div class="main-content">
+            <!-- 사용 가이드 -->
+            <div class="guide-box">
+                <h4>📖 사용 방법</h4>
+                <ul>
+                    <li><strong>1단계:</strong> 분석할 영상을 업로드하세요</li>
+                    <li><strong>2단계:</strong> 분석 모드를 선택하세요 (시점/구간/스키)</li>
+                    <li><strong>3단계:</strong> 영상을 재생하고 <kbd>Space</kbd> 키를 눌러 분석할 시점을 선택하세요</li>
+                    <li><strong>시점 분석:</strong> 선택한 시점의 관절 각도와 스켈레톤을 확인합니다</li>
+                    <li><strong>구간 분석:</strong> 시작~끝 구간의 각도 변화와 궤적을 시계열로 분석합니다</li>
+                    <li><strong>스키 분석:</strong> 정면 영상에서 5선(발목/골반/어깨/상하체 중심선)과 기울기를 분석합니다</li>
+                    <li><strong>Tip:</strong> 각도 테이블을 클릭하면 스켈레톤에서 해당 각도가 강조됩니다 (Ctrl+클릭으로 여러 개 선택)</li>
+                </ul>
+            </div>
+
             <!-- 업로드 섹션 -->
             <div class="upload-section" id="uploadSection">
                 <h2>📂 비디오 파일 선택</h2>
@@ -326,26 +421,100 @@
             <!-- 비디오 플레이어 -->
             <div class="video-container" id="videoContainer">
                 <video id="videoPlayer" controls></video>
-                
+
+                <!-- 모드 선택 -->
+                <div class="mode-selector">
+                    <h4>🎬 분석 모드 선택</h4>
+                    <div class="mode-options">
+                        <div class="mode-option">
+                            <input type="radio" name="analysisMode" value="timepoint" id="modeTimepoint" checked>
+                            <label for="modeTimepoint">📸 시점 분석</label>
+                        </div>
+                        <div class="mode-option">
+                            <input type="radio" name="analysisMode" value="interval" id="modeInterval">
+                            <label for="modeInterval">📊 구간 분석</label>
+                        </div>
+                        <div class="mode-option">
+                            <input type="radio" name="analysisMode" value="ski" id="modeSki">
+                            <label for="modeSki">⛷️ 스키 분석 (정면)</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 관절점 선택 -->
+                <div class="mode-selector">
+                    <label><strong>추적할 관절점:</strong></label>
+                    <select id="keypointSelect" multiple size="6" style="width: 100%; padding: 8px; margin-top: 8px; border-radius: 8px;">
+                        <option value="0" selected>코 (Nose)</option>
+                        <option value="11" selected>왼쪽 어깨 (Left Shoulder)</option>
+                        <option value="12" selected>오른쪽 어깨 (Right Shoulder)</option>
+                        <option value="13">왼쪽 팔꿈치 (Left Elbow)</option>
+                        <option value="14">오른쪽 팔꿈치 (Right Elbow)</option>
+                        <option value="15" selected>왼쪽 손목 (Left Wrist)</option>
+                        <option value="16" selected>오른쪽 손목 (Right Wrist)</option>
+                        <option value="23" selected>왼쪽 엉덩이 (Left Hip)</option>
+                        <option value="24" selected>오른쪽 엉덩이 (Right Hip)</option>
+                        <option value="25" selected>왼쪽 무릎 (Left Knee)</option>
+                        <option value="26" selected>오른쪽 무릎 (Right Knee)</option>
+                        <option value="27" selected>왼쪽 발목 (Left Ankle)</option>
+                        <option value="28" selected>오른쪽 발목 (Right Ankle)</option>
+                    </select>
+                    <p style="font-size: 12px; color: #6c757d; margin-top: 5px; text-align: center;">
+                        Ctrl + 클릭으로 여러 개 선택/해제
+                    </p>
+                </div>
+
+                <!-- 컨트롤 버튼 -->
                 <div class="controls">
-                    <button class="btn btn-success" id="tagBtn" onclick="tagCurrentTime()">
-                        🏷️ 현재 시점 태그 (Space)
-                    </button>
-                    <button class="btn btn-danger" id="clearBtn" onclick="clearAllTimepoints()">
+                    <!-- 시점 분석 버튼들 -->
+                    <div id="timepointControls">
+                        <button class="btn btn-success" onclick="tagTimepoint()">
+                            🏷️ 시점 태그 (Space)
+                        </button>
+                        <button class="btn btn-primary" onclick="analyzeTimepoints()">
+                            🔍 시점 분석 시작
+                        </button>
+                    </div>
+
+                    <!-- 구간 분석 버튼들 -->
+                    <div id="intervalControls" style="display: none;">
+                        <button class="btn btn-warning" onclick="tagIntervalStart()">
+                            ▶️ 구간 시작점
+                        </button>
+                        <button class="btn btn-danger" onclick="tagIntervalEnd()">
+                            ⏹️ 구간 끝점
+                        </button>
+                        <button class="btn btn-info" onclick="analyzeInterval()">
+                            📊 구간 분석 시작
+                        </button>
+                    </div>
+
+                    <!-- 스키 분석 버튼들 -->
+                    <div id="skiControls" style="display: none;">
+                        <button class="btn btn-warning" onclick="tagIntervalStart()">
+                            ▶️ 구간 시작점
+                        </button>
+                        <button class="btn btn-danger" onclick="tagIntervalEnd()">
+                            ⏹️ 구간 끝점
+                        </button>
+                        <button class="btn btn-info" onclick="analyzeSkiInterval()">
+                            ⛷️ 스키 분석 시작
+                        </button>
+                    </div>
+
+                    <button class="btn btn-danger" onclick="clearAll()">
                         🗑️ 전체 삭제
-                    </button>
-                    <button class="btn btn-primary" id="analyzeBtn" onclick="startAnalysis()">
-                        🔍 분석 시작
                     </button>
                 </div>
 
-                <div class="timepoints-list" id="timepointsList">
-                    <h3>태그된 시점 (0개)</h3>
-                    <div id="timepointsContainer"></div>
+                <!-- 태그 목록 -->
+                <div class="tags-section">
+                    <h3 id="tagsTitle">태그 목록</h3>
+                    <div id="tagsContainer"></div>
                 </div>
             </div>
 
-            <!-- 진행률 표시 -->
+            <!-- 진행률 -->
             <div class="progress-bar" id="progressBar">
                 <div class="progress-fill" id="progressFill">0%</div>
             </div>
@@ -363,27 +532,28 @@
         </div>
     </div>
 
-    <!-- MediaPipe 라이브러리 -->
+    <!-- MediaPipe & Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
         let videoElement = document.getElementById('videoPlayer');
-        let timepoints = [];
         let pose = null;
-        let canvas = document.createElement('canvas');
-        let ctx = canvas.getContext('2d');
+        
+        // 데이터 저장
+        let timepoints = []; // 시점 목록
+        let intervalStart = null; // 구간 시작
+        let intervalEnd = null; // 구간 끝
+        let currentMode = 'timepoint'; // 현재 모드
 
-        // MediaPipe Pose 초기화
+        // MediaPipe 초기화
         function initPose() {
             pose = new Pose({
-                locateFile: (file) => {
-                    return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
-                }
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
             });
-
             pose.setOptions({
                 modelComplexity: 1,
                 smoothLandmarks: true,
@@ -393,21 +563,10 @@
             });
         }
 
-        // 파일 선택 처리
+        // 파일 업로드
         document.getElementById('videoInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
-            if (file) {
-                const url = URL.createObjectURL(file);
-                videoElement.src = url;
-                document.getElementById('videoContainer').classList.add('active');
-                document.getElementById('uploadSection').classList.add('active');
-                timepoints = [];
-                updateTimepointsList();
-                
-                if (!pose) {
-                    initPose();
-                }
-            }
+            if (file) loadVideo(file);
         });
 
         // 드래그 앤 드롭
@@ -416,87 +575,1122 @@
             e.preventDefault();
             uploadSection.style.background = '#e9ecef';
         });
-
         uploadSection.addEventListener('dragleave', () => {
             uploadSection.style.background = '#f8f9fa';
         });
-
         uploadSection.addEventListener('drop', (e) => {
             e.preventDefault();
             uploadSection.style.background = '#f8f9fa';
             const file = e.dataTransfer.files[0];
             if (file && file.type.startsWith('video/')) {
-                const url = URL.createObjectURL(file);
-                videoElement.src = url;
-                document.getElementById('videoContainer').classList.add('active');
-                document.getElementById('uploadSection').classList.add('active');
-                timepoints = [];
-                updateTimepointsList();
-                
-                if (!pose) {
-                    initPose();
-                }
+                loadVideo(file);
             }
         });
 
-        // 현재 시점 태그
-        function tagCurrentTime() {
-            const currentTime = videoElement.currentTime;
-            if (!timepoints.includes(currentTime)) {
-                timepoints.push(currentTime);
-                timepoints.sort((a, b) => a - b);
-                updateTimepointsList();
+        function loadVideo(file) {
+            const url = URL.createObjectURL(file);
+            videoElement.src = url;
+            document.getElementById('videoContainer').classList.add('active');
+            
+            timepoints = [];
+            intervalStart = null;
+            intervalEnd = null;
+            updateTagsDisplay();
+            
+            if (!pose) initPose();
+        }
+
+        // 모드 전환
+        document.querySelectorAll('input[name="analysisMode"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                currentMode = e.target.value;
                 
-                showNotification('success', `✓ ${currentTime.toFixed(2)}초 시점이 추가되었습니다.`);
-            } else {
-                showNotification('warning', '이미 추가된 시점입니다.');
+                document.getElementById('timepointControls').style.display = 'none';
+                document.getElementById('intervalControls').style.display = 'none';
+                document.getElementById('skiControls').style.display = 'none';
+                
+                if (currentMode === 'timepoint') {
+                    document.getElementById('timepointControls').style.display = 'block';
+                } else if (currentMode === 'interval') {
+                    document.getElementById('intervalControls').style.display = 'block';
+                } else if (currentMode === 'ski') {
+                    document.getElementById('skiControls').style.display = 'block';
+                }
+            });
+        });
+
+        // 시점 태그
+        function tagTimepoint() {
+            const time = videoElement.currentTime;
+            if (!timepoints.includes(time)) {
+                timepoints.push(time);
+                timepoints.sort((a, b) => a - b);
+                updateTagsDisplay();
+                showNotification('success', `✓ 시점 ${time.toFixed(2)}초 추가`);
             }
         }
 
-        // 시점 목록 업데이트
-        function updateTimepointsList() {
-            const listTitle = document.querySelector('#timepointsList h3');
-            const container = document.getElementById('timepointsContainer');
-            
-            listTitle.textContent = `태그된 시점 (${timepoints.length}개)`;
-            
-            if (timepoints.length === 0) {
-                container.innerHTML = '<p style="color: #6c757d;">추가된 시점이 없습니다.</p>';
-            } else {
-                container.innerHTML = timepoints.map(t => 
-                    `<span class="timepoint-tag">${t.toFixed(2)}초</span>`
-                ).join('');
+        // 구간 시작점
+        function tagIntervalStart() {
+            intervalStart = videoElement.currentTime;
+            updateTagsDisplay();
+            showNotification('warning', `▶️ 구간 시작: ${intervalStart.toFixed(2)}초`);
+        }
+
+        // 구간 끝점
+        function tagIntervalEnd() {
+            if (!intervalStart) {
+                showNotification('warning', '구간 시작점을 먼저 설정하세요.');
+                return;
             }
+            
+            intervalEnd = videoElement.currentTime;
+            
+            if (intervalEnd <= intervalStart) {
+                showNotification('warning', '끝점은 시작점보다 커야 합니다.');
+                intervalEnd = null;
+                return;
+            }
+            
+            updateTagsDisplay();
+            showNotification('info', `⏹️ 구간 끝: ${intervalEnd.toFixed(2)}초`);
         }
 
         // 전체 삭제
-        function clearAllTimepoints() {
-            if (timepoints.length > 0 && confirm('모든 시점을 삭제하시겠습니까?')) {
+        function clearAll() {
+            if (confirm('모든 태그를 삭제하시겠습니까?')) {
                 timepoints = [];
-                updateTimepointsList();
-                showNotification('info', '모든 시점이 삭제되었습니다.');
+                intervalStart = null;
+                intervalEnd = null;
+                updateTagsDisplay();
             }
         }
 
-        // 각도 계산 함수들
-        function calculateSegmentAngle(point1, point2) {
-            const radians = Math.atan2(point2.y - point1.y, point2.x - point1.x);
-            let angle = radians * (180 / Math.PI);
-            if (angle < 0) angle += 360;
+        // 태그 표시 업데이트
+        function updateTagsDisplay() {
+            const container = document.getElementById('tagsContainer');
+            const title = document.getElementById('tagsTitle');
+            
+            let html = '';
+            
+            if (currentMode === 'timepoint') {
+                title.textContent = `시점 태그 (${timepoints.length}개)`;
+                
+                if (timepoints.length === 0) {
+                    html = '<p style="color: #6c757d;">추가된 시점이 없습니다.</p>';
+                } else {
+                    html = timepoints.map(t => 
+                        `<span class="tag-item">${t.toFixed(2)}초</span>`
+                    ).join('');
+                }
+            } else {
+                title.textContent = '구간 설정';
+                
+                if (intervalStart !== null) {
+                    html += `<span class="tag-item interval-start">시작: ${intervalStart.toFixed(2)}초</span>`;
+                }
+                if (intervalEnd !== null) {
+                    html += `<span class="tag-item interval-end">끝: ${intervalEnd.toFixed(2)}초</span>`;
+                }
+                if (intervalStart !== null && intervalEnd !== null) {
+                    const duration = intervalEnd - intervalStart;
+                    html += `<span class="tag-item interval">구간 길이: ${duration.toFixed(2)}초</span>`;
+                }
+                
+                if (intervalStart === null && intervalEnd === null) {
+                    html = '<p style="color: #6c757d;">구간을 설정하세요.</p>';
+                }
+            }
+            
+            container.innerHTML = html;
+        }
+
+        // 시점 분석
+        async function analyzeTimepoints() {
+            if (timepoints.length === 0) {
+                showNotification('warning', '분석할 시점을 먼저 추가하세요.');
+                return;
+            }
+
+            document.getElementById('progressBar').classList.add('active');
+            document.getElementById('loadingSpinner').classList.add('active');
+
+            frameAnalysisIndex = 0; // 초기화
+            const results = [];
+
+            for (let i = 0; i < timepoints.length; i++) {
+                const time = timepoints[i];
+                updateProgress((i + 1) / timepoints.length * 100, `시점 ${i + 1}/${timepoints.length} 분석 중...`);
+                
+                const result = await analyzeFrame(time);
+                result.displayIndex = i; // 결과 표시용 인덱스
+                results.push(result);
+            }
+
+            displayTimepointResults(results);
+
+            // 스트로모션 이미지 생성
+            generateStroboscopeImages(results);
+
+            document.getElementById('progressBar').classList.remove('active');
+            document.getElementById('loadingSpinner').classList.remove('active');
+            document.getElementById('resultsSection').classList.add('active');
+
+            showNotification('success', '✅ 시점 분석 완료!');
+        }
+
+        // 스키 분석
+        async function analyzeSkiInterval() {
+            if (intervalStart === null || intervalEnd === null) {
+                showNotification('warning', '구간의 시작점과 끝점을 모두 설정하세요.');
+                return;
+            }
+
+            document.getElementById('progressBar').classList.add('active');
+            document.getElementById('loadingSpinner').classList.add('active');
+
+            // 구간 내 프레임 샘플링 (0.1초 간격)
+            const frameInterval = 0.1;
+            const frames = [];
+            const frameData = [];
+
+            let currentTime = intervalStart;
+            let frameCount = 0;
+            const totalFrames = Math.ceil((intervalEnd - intervalStart) / frameInterval);
+
+            while (currentTime <= intervalEnd) {
+                frameCount++;
+                updateProgress((frameCount / totalFrames) * 100, `스키 분석 중... ${frameCount}/${totalFrames} 프레임`);
+
+                const result = await analyzeSkiFrame(currentTime);
+                frames.push(result);
+                
+                // 감지 여부와 관계없이 모든 프레임 저장
+                frameData.push({
+                    time: currentTime,
+                    landmarks: result.landmarks,
+                    angles: result.angles
+                });
+
+                currentTime += frameInterval;
+            }
+
+            displaySkiIntervalResults(frameData);
+
+            document.getElementById('progressBar').classList.remove('active');
+            document.getElementById('loadingSpinner').classList.remove('active');
+            document.getElementById('resultsSection').classList.add('active');
+
+            showNotification('success', '✅ 스키 분석 완료!');
+        }
+
+        // 스키 분석용 프레임 분석
+        async function analyzeSkiFrame(time) {
+            return new Promise((resolve) => {
+                videoElement.currentTime = time;
+                
+                videoElement.onseeked = async () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = videoElement.videoWidth;
+                    canvas.height = videoElement.videoHeight;
+                    
+                    ctx.drawImage(videoElement, 0, 0);
+                    const originalImage = canvas.toDataURL();
+                    
+                    pose.onResults((results) => {
+                        if (results.poseLandmarks) {
+                            const angles = calculateSkiAngles(results.poseLandmarks);
+                            
+                            resolve({
+                                time,
+                                originalImage,
+                                landmarks: results.poseLandmarks,
+                                angles,
+                                detected: true
+                            });
+                        } else {
+                            resolve({
+                                time,
+                                originalImage,
+                                landmarks: null,
+                                angles: null,
+                                detected: false
+                            });
+                        }
+                    });
+                    
+                    await pose.send({image: canvas});
+                };
+            });
+        }
+
+        // 스키 분석 결과 표시
+        function displaySkiIntervalResults(frameData) {
+            const container = document.getElementById('resultsContainer');
+            container.innerHTML = `<h3>⛷️ 스키 분석 결과 (정면) - ${intervalStart.toFixed(2)}초 ~ ${intervalEnd.toFixed(2)}초</h3>`;
+            
+            // 안내 메시지
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'alert alert-info';
+            infoDiv.innerHTML = `
+                <strong>스키 분석 정보:</strong><br>
+                • 분석 구간: ${intervalStart.toFixed(2)}초 ~ ${intervalEnd.toFixed(2)}초 (총 ${(intervalEnd - intervalStart).toFixed(2)}초)<br>
+                • 샘플링: 0.1초 간격<br>
+                • 분석 프레임: ${frameData.length}개<br>
+                • 분석 항목: 발목/골반/어깨 기울기, 상하체 상대각도
+            `;
+            container.appendChild(infoDiv);
+            
+            // 구간 영상
+            displaySkiIntervalVideos(frameData);
+            
+            // 각도 변화 그래프
+            displaySkiAngleGraph(frameData);
+            
+            // 관절점 궤적 그래프
+            displaySkiTrajectoryGraph(frameData);
+            
+            // 스트로모션 이미지 생성
+            generateSkiStroboscopeImages(frameData);
+        }
+
+        // 스키 분석 영상 표시
+        function displaySkiIntervalVideos(frameData) {
+            const videoDiv = document.createElement('div');
+            videoDiv.className = 'result-card';
+            videoDiv.innerHTML = `
+                <h3>🎬 스키 분석 영상</h3>
+                <p class="info-text">아래 표에서 프레임을 클릭하면 해당 시점의 영상을 확인할 수 있습니다</p>
+                <div class="image-comparison" style="margin-bottom: 20px;">
+                    <div class="image-box">
+                        <h5>원본 + 스켈레톤 + 5선</h5>
+                        <canvas id="skiOverlayCanvas" class="result-canvas"></canvas>
+                        <p id="skiOverlayTime" style="margin-top: 8px; font-weight: bold; color: #667eea;"></p>
+                    </div>
+                    <div class="image-box">
+                        <h5>스켈레톤 + 5선 + 각도</h5>
+                        <canvas id="skiSkeletonCanvas" class="result-canvas"></canvas>
+                        <p id="skiSkeletonTime" style="margin-top: 8px; font-weight: bold; color: #667eea;"></p>
+                    </div>
+                </div>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table class="angles-table" id="skiFrameTable">
+                        <thead>
+                            <tr>
+                                <th>프레임</th>
+                                <th>시간 (초)</th>
+                                <th>상태</th>
+                            </tr>
+                        </thead>
+                        <tbody id="skiFrameTableBody"></tbody>
+                    </table>
+                </div>
+            `;
+            document.getElementById('resultsContainer').appendChild(videoDiv);
+            
+            // 프레임 테이블 채우기
+            const tbody = document.getElementById('skiFrameTableBody');
+            frameData.forEach((frame, idx) => {
+                const row = document.createElement('tr');
+                row.style.cursor = 'pointer';
+                row.innerHTML = `
+                    <td>${idx + 1}</td>
+                    <td>${frame.time.toFixed(2)}</td>
+                    <td>${frame.landmarks ? '✓ 감지됨' : '✗ 미감지'}</td>
+                `;
+                row.onclick = () => showSkiFrame(frame, idx);
+                tbody.appendChild(row);
+            });
+            
+            // 첫 프레임 자동 표시
+            if (frameData.length > 0) {
+                showSkiFrame(frameData[0], 0);
+            }
+        }
+
+        // 스키 프레임 표시
+        async function showSkiFrame(frame, frameIndex) {
+            // 테이블 하이라이트
+            const rows = document.querySelectorAll('#skiFrameTableBody tr');
+            rows.forEach(r => r.classList.remove('highlighted'));
+            rows[frameIndex].classList.add('highlighted');
+            
+            // 시간 표시
+            document.getElementById('skiOverlayTime').textContent = `시간: ${frame.time.toFixed(2)}초`;
+            document.getElementById('skiSkeletonTime').textContent = `시간: ${frame.time.toFixed(2)}초`;
+            
+            if (!frame.landmarks) {
+                // 포즈 미감지
+                const overlayCanvas = document.getElementById('skiOverlayCanvas');
+                const skeletonCanvas = document.getElementById('skiSkeletonCanvas');
+                
+                [overlayCanvas, skeletonCanvas].forEach(canvas => {
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#F0F0F0';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#999';
+                    ctx.font = '20px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('포즈 미감지', canvas.width / 2, canvas.height / 2);
+                });
+                return;
+            }
+            
+            // 원본 + 5선
+            drawSkiOverlay(frame);
+            
+            // 스켈레톤 + 5선 + 각도
+            drawSkiSkeleton(frame);
+        }
+
+        // 스키 오버레이 그리기
+        function drawSkiOverlay(frame) {
+            const canvas = document.getElementById('skiOverlayCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            videoElement.currentTime = frame.time;
+            videoElement.onseeked = () => {
+                canvas.width = videoElement.videoWidth;
+                canvas.height = videoElement.videoHeight;
+                
+                ctx.drawImage(videoElement, 0, 0);
+                
+                if (frame.landmarks) {
+                    // 스켈레톤
+                    drawConnectors(ctx, frame.landmarks, POSE_CONNECTIONS, 
+                        {color: '#00CED1', lineWidth: 4});
+                    drawLandmarks(ctx, frame.landmarks, 
+                        {color: '#FF1493', lineWidth: 2, radius: 6});
+                    
+                    // 5선 그리기
+                    drawSkiLines(ctx, frame.landmarks, canvas.width, canvas.height, false);
+                }
+            };
+        }
+
+        // 스키 스켈레톤 그리기
+        function drawSkiSkeleton(frame) {
+            const canvas = document.getElementById('skiSkeletonCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+            
+            // 흰 배경
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            if (frame.landmarks) {
+                // 스켈레톤
+                drawConnectors(ctx, frame.landmarks, POSE_CONNECTIONS, 
+                    {color: '#00CED1', lineWidth: 5});
+                drawLandmarks(ctx, frame.landmarks, 
+                    {color: '#FF1493', lineWidth: 2, radius: 8});
+                
+                // 5선 + 각도 표시
+                drawSkiLines(ctx, frame.landmarks, canvas.width, canvas.height, true);
+                
+                // 각도 수치 표시
+                if (frame.angles) {
+                    displaySkiAnglesOnCanvas(ctx, frame.angles);
+                }
+            }
+        }
+
+        // 스키 5선 그리기
+        function drawSkiLines(ctx, landmarks, width, height, showAngles) {
+            const leftAnkle = landmarks[27];
+            const rightAnkle = landmarks[28];
+            const leftHip = landmarks[23];
+            const rightHip = landmarks[24];
+            const leftShoulder = landmarks[11];
+            const rightShoulder = landmarks[12];
+            
+            if (!leftAnkle || !rightAnkle || !leftHip || !rightHip || !leftShoulder || !rightShoulder) return;
+            
+            // 중심점 계산
+            const ankleCenter = {
+                x: (leftAnkle.x + rightAnkle.x) / 2 * width,
+                y: (leftAnkle.y + rightAnkle.y) / 2 * height
+            };
+            const hipCenter = {
+                x: (leftHip.x + rightHip.x) / 2 * width,
+                y: (leftHip.y + rightHip.y) / 2 * height
+            };
+            const shoulderCenter = {
+                x: (leftShoulder.x + rightShoulder.x) / 2 * width,
+                y: (leftShoulder.y + rightShoulder.y) / 2 * height
+            };
+            
+            ctx.lineWidth = 4;
+            
+            // 1. 발목 연결선 (빨강)
+            ctx.strokeStyle = '#FF0000';
+            ctx.beginPath();
+            ctx.moveTo(leftAnkle.x * width, leftAnkle.y * height);
+            ctx.lineTo(rightAnkle.x * width, rightAnkle.y * height);
+            ctx.stroke();
+            
+            // 2. 골반 연결선 (초록)
+            ctx.strokeStyle = '#00FF00';
+            ctx.beginPath();
+            ctx.moveTo(leftHip.x * width, leftHip.y * height);
+            ctx.lineTo(rightHip.x * width, rightHip.y * height);
+            ctx.stroke();
+            
+            // 3. 어깨 연결선 (파랑)
+            ctx.strokeStyle = '#0000FF';
+            ctx.beginPath();
+            ctx.moveTo(leftShoulder.x * width, leftShoulder.y * height);
+            ctx.lineTo(rightShoulder.x * width, rightShoulder.y * height);
+            ctx.stroke();
+            
+            // 4. 하체선 (노랑)
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(ankleCenter.x, ankleCenter.y);
+            ctx.lineTo(hipCenter.x, hipCenter.y);
+            ctx.stroke();
+            
+            // 5. 상체선 (자주)
+            ctx.strokeStyle = '#FF00FF';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(hipCenter.x, hipCenter.y);
+            ctx.lineTo(shoulderCenter.x, shoulderCenter.y);
+            ctx.stroke();
+            
+            // 중심점 표시
+            ctx.fillStyle = '#FFFFFF';
+            [ankleCenter, hipCenter, shoulderCenter].forEach(point => {
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 8, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+        }
+
+        // 스키 각도 수치 표시
+        function displaySkiAnglesOnCanvas(ctx, angles) {
+            ctx.fillStyle = '#000000';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'left';
+            
+            let y = 40;
+            const x = 25;
+            
+            ctx.fillText(`발목 기울기: ${angles['발목_기울기']?.toFixed(1) || 'N/A'}°`, x, y);
+            y += 35;
+            ctx.fillText(`골반 기울기: ${angles['골반_기울기']?.toFixed(1) || 'N/A'}°`, x, y);
+            y += 35;
+            ctx.fillText(`어깨 기울기: ${angles['어깨_기울기']?.toFixed(1) || 'N/A'}°`, x, y);
+            y += 35;
+            ctx.fillText(`상하체 상대각도: ${angles['하체상체_상대각도']?.toFixed(1) || 'N/A'}°`, x, y);
+        }
+
+        // 스키 각도 그래프
+        function displaySkiAngleGraph(frameData) {
+            const graphDiv = document.createElement('div');
+            graphDiv.className = 'graph-container';
+            graphDiv.innerHTML = '<h4>📉 스키 각도 변화</h4><canvas id="skiAngleChart"></canvas>';
+            document.getElementById('resultsContainer').appendChild(graphDiv);
+            
+            const canvas = document.getElementById('skiAngleChart');
+            const ctx = canvas.getContext('2d');
+            
+            const times = frameData.map(f => f.time.toFixed(2));
+            
+            const datasets = [
+                {
+                    label: '발목 기울기',
+                    data: frameData.map(f => f.angles?.['발목_기울기'] || null),
+                    borderColor: '#FF0000',
+                    backgroundColor: '#FF000033',
+                    fill: false,
+                    tension: 0.4
+                },
+                {
+                    label: '골반 기울기',
+                    data: frameData.map(f => f.angles?.['골반_기울기'] || null),
+                    borderColor: '#00FF00',
+                    backgroundColor: '#00FF0033',
+                    fill: false,
+                    tension: 0.4
+                },
+                {
+                    label: '어깨 기울기',
+                    data: frameData.map(f => f.angles?.['어깨_기울기'] || null),
+                    borderColor: '#0000FF',
+                    backgroundColor: '#0000FF33',
+                    fill: false,
+                    tension: 0.4
+                },
+                {
+                    label: '상하체 상대각도',
+                    data: frameData.map(f => f.angles?.['하체상체_상대각도'] || null),
+                    borderColor: '#FF00FF',
+                    backgroundColor: '#FF00FF33',
+                    fill: false,
+                    tension: 0.4
+                }
+            ];
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: times,
+                    datasets
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { title: { display: true, text: '시간 (초)' } },
+                        y: { title: { display: true, text: '각도 (°)' } }
+                    }
+                }
+            });
+        }
+
+        // 스키 관절점 궤적 그래프
+        function displaySkiTrajectoryGraph(frameData) {
+            const graphDiv = document.createElement('div');
+            graphDiv.className = 'graph-container';
+            graphDiv.innerHTML = '<h4>📍 스키 관절점 궤적 (X-Y)</h4><canvas id="skiTrajectoryChart"></canvas>';
+            document.getElementById('resultsContainer').appendChild(graphDiv);
+            
+            const canvas = document.getElementById('skiTrajectoryChart');
+            const ctx = canvas.getContext('2d');
+            
+            // 주요 관절점 (발목, 골반, 어깨 중심)
+            const datasets = [];
+            const colors = {
+                '발목_중심': '#FF0000',
+                '골반_중심': '#00FF00',
+                '어깨_중심': '#0000FF'
+            };
+            
+            // 각 중심점의 궤적 계산
+            Object.entries(colors).forEach(([name, color]) => {
+                const trajectoryData = [];
+                
+                frameData.forEach(frame => {
+                    if (!frame.landmarks) return;
+                    
+                    let centerX, centerY;
+                    
+                    if (name === '발목_중심') {
+                        const left = frame.landmarks[27];
+                        const right = frame.landmarks[28];
+                        if (left && right) {
+                            centerX = (left.x + right.x) / 2;
+                            centerY = (left.y + right.y) / 2;
+                        }
+                    } else if (name === '골반_중심') {
+                        const left = frame.landmarks[23];
+                        const right = frame.landmarks[24];
+                        if (left && right) {
+                            centerX = (left.x + right.x) / 2;
+                            centerY = (left.y + right.y) / 2;
+                        }
+                    } else if (name === '어깨_중심') {
+                        const left = frame.landmarks[11];
+                        const right = frame.landmarks[12];
+                        if (left && right) {
+                            centerX = (left.x + right.x) / 2;
+                            centerY = (left.y + right.y) / 2;
+                        }
+                    }
+                    
+                    if (centerX !== undefined && centerY !== undefined) {
+                        trajectoryData.push({ x: centerX, y: 1 - centerY });
+                    }
+                });
+                
+                if (trajectoryData.length > 0) {
+                    datasets.push({
+                        label: name,
+                        data: trajectoryData,
+                        backgroundColor: color,
+                        borderColor: color,
+                        showLine: true,
+                        tension: 0.4,
+                        pointRadius: 4
+                    });
+                }
+            });
+            
+            new Chart(ctx, {
+                type: 'scatter',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        x: { 
+                            title: { display: true, text: 'X 좌표 (좌우)' },
+                            min: 0,
+                            max: 1
+                        },
+                        y: { 
+                            title: { display: true, text: 'Y 좌표 (상하)' },
+                            min: 0,
+                            max: 1
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // 구간 분석 스트로모션 이미지 생성
+        function generateIntervalStroboscopeImages(frameData) {
+            const validFrames = frameData.filter(f => f.landmarks);
+            
+            if (validFrames.length === 0) return;
+            
+            const container = document.getElementById('resultsContainer');
+            const stroboSection = document.createElement('div');
+            stroboSection.className = 'result-card';
+            stroboSection.innerHTML = `
+                <h3>🌟 구간 스트로모션 이미지 (${validFrames.length}개 프레임)</h3>
+                <p class="info-text">구간 내 모든 프레임의 스켈레톤을 시간 순서대로 색상 변화와 함께 겹쳐서 동작 흐름을 시각화합니다</p>
+                <div class="image-comparison">
+                    <div class="image-box">
+                        <h5>원본 스트로모션</h5>
+                        <canvas id="intervalStroboOriginalCanvas" class="result-canvas"></canvas>
+                    </div>
+                    <div class="image-box">
+                        <h5>스켈레톤 스트로모션 (시간 순서 색상 그라데이션)</h5>
+                        <canvas id="intervalStroboSkeletonCanvas" class="result-canvas"></canvas>
+                    </div>
+                </div>
+            `;
+            container.appendChild(stroboSection);
+            
+            setTimeout(() => {
+                drawIntervalStroboscopeOriginal(validFrames);
+                drawIntervalStroboscopeSkeleton(validFrames);
+            }, 100);
+        }
+
+        async function drawIntervalStroboscopeOriginal(frames) {
+            const canvas = document.getElementById('intervalStroboOriginalCanvas');
+            if (!canvas) return;
+            
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 각 프레임을 순차적으로 그리기
+            const alpha = Math.min(0.2, 3.0 / frames.length);
+            
+            for (let i = 0; i < frames.length; i++) {
+                const frame = frames[i];
+                await new Promise((resolve) => {
+                    videoElement.currentTime = frame.time;
+                    videoElement.onseeked = () => {
+                        ctx.globalAlpha = alpha;
+                        ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+                        resolve();
+                    };
+                });
+            }
+            
+            ctx.globalAlpha = 1.0;
+        }
+
+        function drawIntervalStroboscopeSkeleton(frames) {
+            const canvas = document.getElementById('intervalStroboSkeletonCanvas');
+            if (!canvas) return;
+            
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 시간 순서 색상 그라데이션 (노랑 -> 파랑 -> 어두운 파랑)
+            frames.forEach((frame, idx) => {
+                if (!frame.landmarks) return;
+                
+                const progress = idx / (frames.length - 1);
+                let color;
+                
+                if (progress < 0.5) {
+                    // 노랑 -> 파랑
+                    const t = progress * 2;
+                    const r = Math.floor(255 * (1 - t));
+                    const g = Math.floor(255 * (1 - t));
+                    const b = Math.floor(255 * t);
+                    color = `rgb(${r}, ${g}, ${b})`;
+                } else {
+                    // 파랑 -> 어두운 파랑
+                    const t = (progress - 0.5) * 2;
+                    const r = 0;
+                    const g = 0;
+                    const b = Math.floor(255 * (1 - t * 0.7));
+                    color = `rgb(${r}, ${g}, ${b})`;
+                }
+                
+                ctx.globalAlpha = 0.7;
+                
+                drawConnectors(ctx, frame.landmarks, POSE_CONNECTIONS, 
+                    {color: color, lineWidth: 4});
+                drawLandmarks(ctx, frame.landmarks, 
+                    {color: color, lineWidth: 2, radius: 6});
+            });
+            
+            ctx.globalAlpha = 1.0;
+        }
+
+        // 스키 스트로모션 이미지 생성
+        function generateSkiStroboscopeImages(frameData) {
+            const validFrames = frameData.filter(f => f.landmarks);
+            
+            if (validFrames.length === 0) return;
+            
+            const container = document.getElementById('resultsContainer');
+            const stroboSection = document.createElement('div');
+            stroboSection.className = 'result-card';
+            stroboSection.innerHTML = `
+                <h3>🌟 스키 스트로모션 이미지 (${validFrames.length}개 프레임)</h3>
+                <p class="info-text">모든 프레임의 스켈레톤과 5선을 시간 순서대로 색상 변화와 함께 겹쳐서 동작 흐름을 시각화합니다</p>
+                <div class="image-comparison">
+                    <div class="image-box">
+                        <h5>원본 스트로모션</h5>
+                        <canvas id="skiStroboOriginalCanvas" class="result-canvas"></canvas>
+                    </div>
+                    <div class="image-box">
+                        <h5>스켈레톤 + 5선 스트로모션 (시간 순서 색상 그라데이션)</h5>
+                        <canvas id="skiStroboSkeletonCanvas" class="result-canvas"></canvas>
+                    </div>
+                </div>
+            `;
+            container.appendChild(stroboSection);
+            
+            setTimeout(() => {
+                drawSkiStroboscopeOriginal(validFrames);
+                drawSkiStroboscopeSkeleton(validFrames);
+            }, 100);
+        }
+
+        async function drawSkiStroboscopeOriginal(frames) {
+            const canvas = document.getElementById('skiStroboOriginalCanvas');
+            if (!canvas) return;
+            
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 각 프레임을 순차적으로 그리기
+            const alpha = Math.min(0.2, 3.0 / frames.length);
+            
+            for (let i = 0; i < frames.length; i++) {
+                const frame = frames[i];
+                await new Promise((resolve) => {
+                    videoElement.currentTime = frame.time;
+                    videoElement.onseeked = () => {
+                        ctx.globalAlpha = alpha;
+                        ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+                        resolve();
+                    };
+                });
+            }
+            
+            ctx.globalAlpha = 1.0;
+        }
+
+        function drawSkiStroboscopeSkeleton(frames) {
+            const canvas = document.getElementById('skiStroboSkeletonCanvas');
+            if (!canvas) return;
+            
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 시간 순서 색상 그라데이션 (노랑 -> 파랑 -> 어두운 파랑)
+            frames.forEach((frame, idx) => {
+                if (!frame.landmarks) return;
+                
+                const progress = idx / (frames.length - 1);
+                let color;
+                
+                if (progress < 0.5) {
+                    // 노랑 -> 파랑
+                    const t = progress * 2;
+                    const r = Math.floor(255 * (1 - t));
+                    const g = Math.floor(255 * (1 - t));
+                    const b = Math.floor(255 * t);
+                    color = `rgb(${r}, ${g}, ${b})`;
+                } else {
+                    // 파랑 -> 어두운 파랑
+                    const t = (progress - 0.5) * 2;
+                    const r = 0;
+                    const g = 0;
+                    const b = Math.floor(255 * (1 - t * 0.7));
+                    color = `rgb(${r}, ${g}, ${b})`;
+                }
+                
+                ctx.globalAlpha = 0.7;
+                
+                drawConnectors(ctx, frame.landmarks, POSE_CONNECTIONS, 
+                    {color: color, lineWidth: 4});
+                drawLandmarks(ctx, frame.landmarks, 
+                    {color: color, lineWidth: 2, radius: 6});
+                
+                // 5선도 같은 색상으로 그리기 (더 두껍게)
+                const originalStrokeStyle = ctx.strokeStyle;
+                const originalLineWidth = ctx.lineWidth;
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 5;
+                
+                const leftAnkle = frame.landmarks[27];
+                const rightAnkle = frame.landmarks[28];
+                const leftHip = frame.landmarks[23];
+                const rightHip = frame.landmarks[24];
+                const leftShoulder = frame.landmarks[11];
+                const rightShoulder = frame.landmarks[12];
+                
+                if (leftAnkle && rightAnkle && leftHip && rightHip && leftShoulder && rightShoulder) {
+                    const ankleCenter = {
+                        x: (leftAnkle.x + rightAnkle.x) / 2 * canvas.width,
+                        y: (leftAnkle.y + rightAnkle.y) / 2 * canvas.height
+                    };
+                    const hipCenter = {
+                        x: (leftHip.x + rightHip.x) / 2 * canvas.width,
+                        y: (leftHip.y + rightHip.y) / 2 * canvas.height
+                    };
+                    const shoulderCenter = {
+                        x: (leftShoulder.x + rightShoulder.x) / 2 * canvas.width,
+                        y: (leftShoulder.y + rightShoulder.y) / 2 * canvas.height
+                    };
+                    
+                    // 발목 연결선
+                    ctx.beginPath();
+                    ctx.moveTo(leftAnkle.x * canvas.width, leftAnkle.y * canvas.height);
+                    ctx.lineTo(rightAnkle.x * canvas.width, rightAnkle.y * canvas.height);
+                    ctx.stroke();
+                    
+                    // 골반 연결선
+                    ctx.beginPath();
+                    ctx.moveTo(leftHip.x * canvas.width, leftHip.y * canvas.height);
+                    ctx.lineTo(rightHip.x * canvas.width, rightHip.y * canvas.height);
+                    ctx.stroke();
+                    
+                    // 어깨 연결선
+                    ctx.beginPath();
+                    ctx.moveTo(leftShoulder.x * canvas.width, leftShoulder.y * canvas.height);
+                    ctx.lineTo(rightShoulder.x * canvas.width, rightShoulder.y * canvas.height);
+                    ctx.stroke();
+                    
+                    // 하체선
+                    ctx.lineWidth = 6;
+                    ctx.beginPath();
+                    ctx.moveTo(ankleCenter.x, ankleCenter.y);
+                    ctx.lineTo(hipCenter.x, hipCenter.y);
+                    ctx.stroke();
+                    
+                    // 상체선
+                    ctx.beginPath();
+                    ctx.moveTo(hipCenter.x, hipCenter.y);
+                    ctx.lineTo(shoulderCenter.x, shoulderCenter.y);
+                    ctx.stroke();
+                }
+                
+                ctx.strokeStyle = originalStrokeStyle;
+                ctx.lineWidth = originalLineWidth;
+            });
+            
+            ctx.globalAlpha = 1.0;
+        }
+
+        // 구간 분석
+        async function analyzeInterval() {
+            if (intervalStart === null || intervalEnd === null) {
+                showNotification('warning', '구간의 시작점과 끝점을 모두 설정하세요.');
+                return;
+            }
+
+            document.getElementById('progressBar').classList.add('active');
+            document.getElementById('loadingSpinner').classList.add('active');
+
+            // 구간 내 프레임 샘플링 (0.1초 간격)
+            const frameInterval = 0.1;
+            const frames = [];
+            const frameData = [];
+
+            let currentTime = intervalStart;
+            let frameCount = 0;
+            const totalFrames = Math.ceil((intervalEnd - intervalStart) / frameInterval);
+
+            while (currentTime <= intervalEnd) {
+                frameCount++;
+                updateProgress((frameCount / totalFrames) * 100, `구간 분석 중... ${frameCount}/${totalFrames} 프레임`);
+
+                const result = await analyzeFrame(currentTime);
+                frames.push(result);
+                
+                // 감지 여부와 관계없이 모든 프레임 저장
+                frameData.push({
+                    time: currentTime,
+                    landmarks: result.landmarks,
+                    angles: result.angles
+                });
+
+                currentTime += frameInterval;
+            }
+
+            displayIntervalResults(frameData);
+
+            document.getElementById('progressBar').classList.remove('active');
+            document.getElementById('loadingSpinner').classList.remove('active');
+            document.getElementById('resultsSection').classList.add('active');
+
+            showNotification('success', '✅ 구간 분석 완료!');
+        }
+
+        // 프레임 분석
+        let frameAnalysisIndex = 0;
+        
+        async function analyzeFrame(time) {
+            return new Promise((resolve) => {
+                videoElement.currentTime = time;
+                
+                videoElement.onseeked = async () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = videoElement.videoWidth;
+                    canvas.height = videoElement.videoHeight;
+                    
+                    ctx.drawImage(videoElement, 0, 0);
+                    const originalImage = canvas.toDataURL();
+                    
+                    pose.onResults((results) => {
+                        if (results.poseLandmarks) {
+                            // 스켈레톤 그리기
+                            drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, 
+                                {color: '#00FF00', lineWidth: 4});
+                            drawLandmarks(ctx, results.poseLandmarks, 
+                                {color: '#FF0000', lineWidth: 2, radius: 6});
+                            
+                            const skeletonImage = canvas.toDataURL();
+                            const angles = calculateAngles(results.poseLandmarks);
+                            
+                            // 전역 변수로 저장 (나중에 다시 그릴 때 사용)
+                            const idx = frameAnalysisIndex++;
+                            window[`resultLandmarks_${idx}`] = results.poseLandmarks;
+                            window[`resultAngles_${idx}`] = angles;
+                            
+                            resolve({
+                                time,
+                                originalImage,
+                                skeletonImage,
+                                landmarks: results.poseLandmarks,
+                                angles,
+                                detected: true,
+                                analysisIndex: idx
+                            });
+                        } else {
+                            const skeletonImage = canvas.toDataURL();
+                            resolve({
+                                time,
+                                originalImage,
+                                skeletonImage,
+                                landmarks: null,
+                                angles: null,
+                                detected: false
+                            });
+                        }
+                    });
+                    
+                    await pose.send({image: canvas});
+                };
+            });
+        }
+
+        // 스키 분석 각도 계산 (정면)
+        function calculateSkiAngles(landmarks) {
+            const angles = {};
+            
+            // 발목: 27(좌), 28(우)
+            // 골반: 23(좌), 24(우)
+            // 어깨: 11(좌), 12(우)
+            
+            const leftAnkle = landmarks[27];
+            const rightAnkle = landmarks[28];
+            const leftHip = landmarks[23];
+            const rightHip = landmarks[24];
+            const leftShoulder = landmarks[11];
+            const rightShoulder = landmarks[12];
+            
+            if (leftAnkle && rightAnkle && leftHip && rightHip && leftShoulder && rightShoulder) {
+                // 중심점 계산
+                const ankleCenter = {
+                    x: (leftAnkle.x + rightAnkle.x) / 2,
+                    y: (leftAnkle.y + rightAnkle.y) / 2
+                };
+                const hipCenter = {
+                    x: (leftHip.x + rightHip.x) / 2,
+                    y: (leftHip.y + rightHip.y) / 2
+                };
+                const shoulderCenter = {
+                    x: (leftShoulder.x + rightShoulder.x) / 2,
+                    y: (leftShoulder.y + rightShoulder.y) / 2
+                };
+                
+                // 연결선 기울기 (수평선 기준)
+                angles['발목_기울기'] = calculateLineAngle(leftAnkle, rightAnkle);
+                angles['골반_기울기'] = calculateLineAngle(leftHip, rightHip);
+                angles['어깨_기울기'] = calculateLineAngle(leftShoulder, rightShoulder);
+                
+                // 하체선/상체선 상대각도
+                const lowerLineAngle = Math.atan2(hipCenter.y - ankleCenter.y, hipCenter.x - ankleCenter.x);
+                const upperLineAngle = Math.atan2(shoulderCenter.y - hipCenter.y, shoulderCenter.x - hipCenter.x);
+                
+                let relativeAngle = Math.abs(upperLineAngle - lowerLineAngle) * (180 / Math.PI);
+                if (relativeAngle > 180) relativeAngle = 360 - relativeAngle;
+                
+                angles['하체상체_상대각도'] = relativeAngle;
+                
+                // 중심점 저장 (그리기용)
+                angles['centers'] = { ankleCenter, hipCenter, shoulderCenter };
+            }
+            
+            return angles;
+        }
+
+        // 두 점을 잇는 선의 수평선 기준 기울기 계산
+        function calculateLineAngle(p1, p2) {
+            const rad = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+            let angle = rad * (180 / Math.PI);
+            // 0~180도 범위로 정규화
+            if (angle < 0) angle += 180;
             return angle;
         }
 
-        function calculateJointAngle(a, b, c) {
-            const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
-            let angle = Math.abs(radians * (180 / Math.PI));
-            if (angle > 180) angle = 360 - angle;
-            return angle;
-        }
-
+        // 각도 계산
         function calculateAngles(landmarks) {
             const angles = { absolute: {}, relative: {} };
             
-            // 절대각도
+            // 절대각도 - 분절 기울기
             if (landmarks[11] && landmarks[13]) {
                 angles.absolute['좌_상완'] = calculateSegmentAngle(landmarks[11], landmarks[13]);
             }
@@ -509,14 +1703,8 @@
             if (landmarks[24] && landmarks[26]) {
                 angles.absolute['우_대퇴'] = calculateSegmentAngle(landmarks[24], landmarks[26]);
             }
-            if (landmarks[25] && landmarks[27]) {
-                angles.absolute['좌_하퇴'] = calculateSegmentAngle(landmarks[25], landmarks[27]);
-            }
-            if (landmarks[26] && landmarks[28]) {
-                angles.absolute['우_하퇴'] = calculateSegmentAngle(landmarks[26], landmarks[28]);
-            }
             
-            // 상대각도
+            // 상대각도 - 관절각도
             if (landmarks[11] && landmarks[13] && landmarks[15]) {
                 angles.relative['좌_팔꿈치'] = calculateJointAngle(landmarks[11], landmarks[13], landmarks[15]);
             }
@@ -539,78 +1727,836 @@
             return angles;
         }
 
-        // 분석 시작
-        async function startAnalysis() {
-            if (timepoints.length === 0) {
-                showNotification('warning', '분석할 시점을 먼저 추가하세요.');
-                return;
-            }
-
-            document.getElementById('progressBar').classList.add('active');
-            document.getElementById('loadingSpinner').classList.add('active');
-            document.getElementById('analyzeBtn').disabled = true;
-
-            const results = [];
-
-            for (let i = 0; i < timepoints.length; i++) {
-                const time = timepoints[i];
-                updateProgress((i + 1) / timepoints.length * 100, `시점 ${i + 1}/${timepoints.length} 분석 중...`);
-                
-                const result = await analyzeFrame(time);
-                results.push(result);
-                
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-
-            displayResults(results);
-            
-            document.getElementById('progressBar').classList.remove('active');
-            document.getElementById('loadingSpinner').classList.remove('active');
-            document.getElementById('analyzeBtn').disabled = false;
-            
-            showNotification('success', '✅ 분석이 완료되었습니다!');
+        function calculateSegmentAngle(p1, p2) {
+            const rad = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+            let angle = rad * (180 / Math.PI);
+            if (angle < 0) angle += 360;
+            return angle;
         }
 
-        // 프레임 분석
-        async function analyzeFrame(time) {
-            return new Promise((resolve) => {
-                videoElement.currentTime = time;
+        function calculateJointAngle(a, b, c) {
+            const rad = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
+            let angle = Math.abs(rad * (180 / Math.PI));
+            if (angle > 180) angle = 360 - angle;
+            return angle;
+        }
+
+        // 시점 분석 결과 표시
+        function displayTimepointResults(results) {
+            const container = document.getElementById('resultsContainer');
+            container.innerHTML = '<h3>📸 시점별 분석 결과</h3>';
+            
+            results.forEach((result, index) => {
+                const card = document.createElement('div');
+                card.className = 'result-card';
+                card.id = `result-${index}`;
                 
-                videoElement.onseeked = async () => {
-                    canvas.width = videoElement.videoWidth;
-                    canvas.height = videoElement.videoHeight;
-                    ctx.drawImage(videoElement, 0, 0);
+                let html = `<h3>시점 ${index + 1}: ${result.time.toFixed(2)}초</h3>`;
+                
+                html += `<div class="image-comparison">`;
+                
+                // 원본 + 스켈레톤 오버레이
+                html += `<div class="image-box">`;
+                html += `<h5>원본 + 스켈레톤 오버레이</h5>`;
+                html += `<canvas id="overlayCanvas-${index}" class="result-canvas"></canvas>`;
+                html += `</div>`;
+                
+                // 스켈레톤만 (각도 표시) - 크롭 확대
+                html += `<div class="image-box">`;
+                html += `<h5>스켈레톤 + 각도 (확대)</h5>`;
+                html += `<canvas id="skeletonCanvas-${index}" class="result-canvas"></canvas>`;
+                html += `</div>`;
+                
+                html += `</div>`;
+                
+                if (result.detected && result.angles) {
+                    html += `<table class="angles-table" id="angleTable-${index}">`;
+                    html += `<thead><tr><th>항목</th><th>각도 (°)</th></tr></thead>`;
+                    html += `<tbody>`;
                     
-                    pose.onResults((results) => {
-                        // 포즈 그리기
-                        ctx.drawImage(videoElement, 0, 0);
+                    for (let [name, value] of Object.entries(result.angles.absolute)) {
+                        html += `<tr data-angle-type="absolute" data-angle-name="${name}" onclick="highlightAngleOnSkeleton(${index}, 'absolute', '${name}')">`;
+                        html += `<td>절대_${name}</td><td>${value.toFixed(2)}</td></tr>`;
+                    }
+                    for (let [name, value] of Object.entries(result.angles.relative)) {
+                        html += `<tr data-angle-type="relative" data-angle-name="${name}" onclick="highlightAngleOnSkeleton(${index}, 'relative', '${name}')">`;
+                        html += `<td>관절_${name}</td><td>${value.toFixed(2)}</td></tr>`;
+                    }
+                    
+                    html += `</tbody></table>`;
+                } else {
+                    html += `<p style="color: #dc3545;">⚠️ 포즈를 감지하지 못했습니다.</p>`;
+                }
+                
+                card.innerHTML = html;
+                container.appendChild(card);
+                
+                // 캔버스 그리기
+                if (result.detected) {
+                    setTimeout(() => {
+                        drawOverlayCanvas(index, result);
+                        drawSkeletonCanvas(index, result);
+                    }, 100);
+                }
+            });
+        }
+
+        // 원본 + 스켈레톤 오버레이 그리기
+        function drawOverlayCanvas(index, result) {
+            const canvas = document.getElementById(`overlayCanvas-${index}`);
+            if (!canvas) return;
+            
+            const img = new Image();
+            img.onload = () => {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                
+                // 원본 영상
+                ctx.drawImage(img, 0, 0);
+                
+                // 스켈레톤 오버레이 (선명한 색상)
+                if (result.landmarks) {
+                    drawConnectors(ctx, result.landmarks, POSE_CONNECTIONS, 
+                        {color: '#00CED1', lineWidth: 5});
+                    drawLandmarks(ctx, result.landmarks, 
+                        {color: '#FF1493', lineWidth: 2, radius: 8});
+                }
+            };
+            img.src = result.originalImage;
+        }
+
+        // 스트로모션 이미지 생성
+        function generateStroboscopeImages(results) {
+            // 포즈가 감지된 결과만 필터링
+            const validResults = results.filter(r => r.detected && r.landmarks);
+            
+            if (validResults.length === 0) {
+                return;
+            }
+            
+            const container = document.getElementById('resultsContainer');
+            
+            // 스트로모션 섹션 추가
+            const stroboSection = document.createElement('div');
+            stroboSection.className = 'result-card';
+            stroboSection.innerHTML = `
+                <h3>🌟 스트로모션 이미지 (모든 시점 오버레이)</h3>
+                <p class="info-text">모든 시점의 영상을 한 장의 이미지로 합성하여 동작 흐름을 시각화합니다</p>
+                <div class="image-comparison">
+                    <div class="image-box">
+                        <h5>원본 스트로모션 (${validResults.length}개 시점)</h5>
+                        <canvas id="stroboOriginalCanvas" class="result-canvas"></canvas>
+                    </div>
+                    <div class="image-box">
+                        <h5>스켈레톤 스트로모션 (${validResults.length}개 시점)</h5>
+                        <canvas id="stroboSkeletonCanvas" class="result-canvas"></canvas>
+                    </div>
+                </div>
+            `;
+            container.appendChild(stroboSection);
+            
+            // 캔버스 그리기
+            setTimeout(() => {
+                drawStroboscopeOriginal(validResults);
+                drawStroboscopeSkeleton(validResults);
+            }, 100);
+        }
+
+        // 원본 스트로모션 이미지
+        function drawStroboscopeOriginal(results) {
+            const canvas = document.getElementById('stroboOriginalCanvas');
+            if (!canvas) return;
+            
+            // 첫 번째 결과를 기준으로 크기 설정
+            const firstImg = new Image();
+            firstImg.onload = () => {
+                canvas.width = firstImg.width;
+                canvas.height = firstImg.height;
+                const ctx = canvas.getContext('2d');
+                
+                // 검은 배경
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // 각 시점의 영상을 반투명하게 겹쳐 그리기
+                const alpha = 1.0 / results.length; // 투명도 계산
+                
+                let loadedCount = 0;
+                results.forEach((result, index) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        ctx.globalAlpha = alpha * 1.5; // 조금 더 진하게
+                        ctx.drawImage(img, 0, 0);
                         
-                        if (results.poseLandmarks) {
-                            drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#00FF00', lineWidth: 4});
-                            drawLandmarks(ctx, results.poseLandmarks, {color: '#FF0000', lineWidth: 2, radius: 6});
-                            
-                            const angles = calculateAngles(results.poseLandmarks);
-                            const imageUrl = canvas.toDataURL();
-                            
-                            resolve({
-                                time: time,
-                                image: imageUrl,
-                                angles: angles,
-                                detected: true
-                            });
-                        } else {
-                            const imageUrl = canvas.toDataURL();
-                            resolve({
-                                time: time,
-                                image: imageUrl,
-                                angles: null,
-                                detected: false
-                            });
+                        loadedCount++;
+                        if (loadedCount === results.length) {
+                            // 모든 이미지 로드 완료
+                            ctx.globalAlpha = 1.0;
                         }
-                    });
+                    };
+                    img.src = result.originalImage;
+                });
+            };
+            firstImg.src = results[0].originalImage;
+        }
+
+        // 스켈레톤 스트로모션 이미지
+        function drawStroboscopeSkeleton(results) {
+            const canvas = document.getElementById('stroboSkeletonCanvas');
+            if (!canvas) return;
+            
+            const firstImg = new Image();
+            firstImg.onload = () => {
+                canvas.width = firstImg.width;
+                canvas.height = firstImg.height;
+                const ctx = canvas.getContext('2d');
+                
+                // 흰 배경
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // 각 시점의 스켈레톤을 다른 색상으로 겹쳐 그리기
+                const colors = [
+                    '#FF0000', '#00FF00', '#0000FF', '#FFA500', '#FF00FF',
+                    '#00FFFF', '#FFD700', '#FF1493', '#00CED1', '#FF4500',
+                    '#32CD32', '#8B4513', '#4B0082', '#DC143C', '#00FF7F'
+                ];
+                
+                results.forEach((result, index) => {
+                    if (!result.landmarks) return;
                     
-                    await pose.send({image: canvas});
-                };
+                    const color = colors[index % colors.length];
+                    const opacity = 0.6; // 반투명
+                    
+                    // 연결선
+                    ctx.globalAlpha = opacity;
+                    drawConnectors(ctx, result.landmarks, POSE_CONNECTIONS, 
+                        {color: color, lineWidth: 4});
+                    
+                    // 관절점
+                    ctx.globalAlpha = opacity * 1.5;
+                    drawLandmarks(ctx, result.landmarks, 
+                        {color: color, lineWidth: 2, radius: 6});
+                    
+                    // 시점 번호 표시 (코 위치에)
+                    const nose = result.landmarks[0];
+                    if (nose) {
+                        ctx.globalAlpha = 1.0;
+                        ctx.fillStyle = color;
+                        ctx.font = 'bold 20px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(`${index + 1}`, 
+                            nose.x * canvas.width, 
+                            nose.y * canvas.height - 20);
+                    }
+                });
+                
+                ctx.globalAlpha = 1.0;
+                
+                // 범례 추가
+                ctx.fillStyle = '#000000';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'left';
+                let legendY = 30;
+                results.forEach((result, index) => {
+                    const color = colors[index % colors.length];
+                    ctx.fillStyle = color;
+                    ctx.fillRect(20, legendY - 12, 15, 15);
+                    ctx.fillStyle = '#000000';
+                    ctx.fillText(`시점 ${index + 1}: ${result.time.toFixed(2)}초`, 45, legendY);
+                    legendY += 25;
+                    
+                    // 범례가 너무 길면 2열로
+                    if (legendY > canvas.height - 50 && index < results.length - 1) {
+                        legendY = 30;
+                        // 다음 열로 이동 (간단한 방법)
+                    }
+                });
+            };
+            firstImg.src = results[0].originalImage;
+        }
+
+        // 스켈레톤 바운딩 박스 계산
+        function calculateBoundingBox(landmarks) {
+            let minX = 1, minY = 1, maxX = 0, maxY = 0;
+            
+            landmarks.forEach(lm => {
+                if (lm.x < minX) minX = lm.x;
+                if (lm.x > maxX) maxX = lm.x;
+                if (lm.y < minY) minY = lm.y;
+                if (lm.y > maxY) maxY = lm.y;
+            });
+            
+            // 여유 공간 추가 (20%)
+            const width = maxX - minX;
+            const height = maxY - minY;
+            const padding = 0.2;
+            
+            minX = Math.max(0, minX - width * padding);
+            minY = Math.max(0, minY - height * padding);
+            maxX = Math.min(1, maxX + width * padding);
+            maxY = Math.min(1, maxY + height * padding);
+            
+            return { minX, minY, maxX, maxY };
+        }
+
+        // 스켈레톤 + 각도 표시 그리기 (크롭 확대)
+        let currentHighlightedAngle = null;
+
+        function drawSkeletonCanvas(index, result, highlightAngle = null) {
+            const canvas = document.getElementById(`skeletonCanvas-${index}`);
+            if (!canvas) return;
+            
+            const img = new Image();
+            img.onload = () => {
+                const originalWidth = img.width;
+                const originalHeight = img.height;
+                
+                // 바운딩 박스 계산
+                const bbox = calculateBoundingBox(result.landmarks);
+                
+                // 크롭 영역
+                const cropX = bbox.minX * originalWidth;
+                const cropY = bbox.minY * originalHeight;
+                const cropWidth = (bbox.maxX - bbox.minX) * originalWidth;
+                const cropHeight = (bbox.maxY - bbox.minY) * originalHeight;
+                
+                // 캔버스 크기 설정 (원본 비율 유지)
+                canvas.width = originalWidth;
+                canvas.height = originalHeight;
+                const ctx = canvas.getContext('2d');
+                
+                // 흰 배경
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                if (result.landmarks) {
+                    // 좌표 변환 (크롭 영역 기준으로 재계산)
+                    const transformedLandmarks = result.landmarks.map(lm => ({
+                        x: (lm.x - bbox.minX) / (bbox.maxX - bbox.minX),
+                        y: (lm.y - bbox.minY) / (bbox.maxY - bbox.minY),
+                        z: lm.z,
+                        visibility: lm.visibility
+                    }));
+                    
+                    // 스켈레톤 그리기 (더 굵고 선명하게)
+                    drawConnectors(ctx, transformedLandmarks, POSE_CONNECTIONS, 
+                        {color: '#00CED1', lineWidth: 6});
+                    drawLandmarks(ctx, transformedLandmarks, 
+                        {color: '#FF1493', lineWidth: 3, radius: 10});
+                    
+                    // 각도 호 그리기
+                    if (result.angles) {
+                        drawAngleArcs(ctx, transformedLandmarks, result.angles, canvas.width, canvas.height, highlightAngle);
+                    }
+                }
+            };
+            img.src = result.originalImage;
+        }
+
+        // 각도 호 그리기
+        function drawAngleArcs(ctx, landmarks, angles, width, height, highlightAngle) {
+            // 관절 각도 (3점)
+            const jointAngles = {
+                '좌_팔꿈치': [11, 13, 15],
+                '우_팔꿈치': [12, 14, 16],
+                '좌_무릎': [23, 25, 27],
+                '우_무릎': [24, 26, 28],
+                '좌_엉덩이': [11, 23, 25],
+                '우_엉덩이': [12, 24, 26]
+            };
+            
+            for (let [name, indices] of Object.entries(jointAngles)) {
+                if (!angles.relative[name]) continue;
+                
+                const [a, b, c] = indices.map(i => landmarks[i]);
+                if (!a || !b || !c) continue;
+                
+                const isHighlighted = highlightAngle && 
+                    highlightAngle.type === 'relative' && 
+                    highlightAngle.name === name;
+                
+                const color = isHighlighted ? '#FF0000' : '#667eea';
+                const lineWidth = isHighlighted ? 4 : 2;
+                const radius = isHighlighted ? 40 : 25;
+                
+                drawArc(ctx, a, b, c, width, height, angles.relative[name], color, lineWidth, radius);
+            }
+            
+            // 절대 각도 (분절 기울기) - 화살표로 표시
+            const segmentAngles = {
+                '좌_상완': [11, 13],
+                '우_상완': [12, 14],
+                '좌_대퇴': [23, 25],
+                '우_대퇴': [24, 26]
+            };
+            
+            for (let [name, indices] of Object.entries(segmentAngles)) {
+                if (!angles.absolute[name]) continue;
+                
+                const [p1, p2] = indices.map(i => landmarks[i]);
+                if (!p1 || !p2) continue;
+                
+                const isHighlighted = highlightAngle && 
+                    highlightAngle.type === 'absolute' && 
+                    highlightAngle.name === name;
+                
+                const color = isHighlighted ? '#FF0000' : '#FFA500';
+                const lineWidth = isHighlighted ? 5 : 3;
+                
+                drawSegmentAngle(ctx, p1, p2, width, height, angles.absolute[name], color, lineWidth);
+            }
+        }
+
+        // 호 그리기 함수
+        function drawArc(ctx, p1, center, p2, width, height, angleDegrees, color, lineWidth, radius) {
+            const cx = center.x * width;
+            const cy = center.y * height;
+            
+            const angle1 = Math.atan2((p1.y * height) - cy, (p1.x * width) - cx);
+            const angle2 = Math.atan2((p2.y * height) - cy, (p2.x * width) - cx);
+            
+            let startAngle = angle1;
+            let endAngle = angle2;
+            
+            // 각도 차이 계산하여 짧은 호 그리기
+            let diff = endAngle - startAngle;
+            if (diff > Math.PI) {
+                startAngle += 2 * Math.PI;
+            } else if (diff < -Math.PI) {
+                endAngle += 2 * Math.PI;
+            }
+            
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, startAngle, endAngle, false);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.stroke();
+            
+            // 각도 텍스트
+            const midAngle = (startAngle + endAngle) / 2;
+            const textX = cx + Math.cos(midAngle) * (radius + 20);
+            const textY = cy + Math.sin(midAngle) * (radius + 20);
+            
+            ctx.fillStyle = color;
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(angleDegrees.toFixed(1) + '°', textX, textY);
+        }
+
+        // 분절 각도 화살표 그리기
+        function drawSegmentAngle(ctx, p1, p2, width, height, angleDegrees, color, lineWidth) {
+            const x1 = p1.x * width;
+            const y1 = p1.y * height;
+            const x2 = p2.x * width;
+            const y2 = p2.y * height;
+            
+            // 중점
+            const mx = (x1 + x2) / 2;
+            const my = (y1 + y2) / 2;
+            
+            // 분절 방향
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const len = Math.sqrt(dx * dx + dy * dy);
+            
+            // 수평선 (기준선)
+            const refLen = len * 0.4;
+            ctx.beginPath();
+            ctx.moveTo(mx - refLen, my);
+            ctx.lineTo(mx + refLen, my);
+            ctx.strokeStyle = '#CCCCCC';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // 분절 강조
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.stroke();
+            
+            // 각도 텍스트
+            ctx.fillStyle = color;
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(angleDegrees.toFixed(1) + '°', mx + 40, my - 10);
+        }
+
+        // 테이블 클릭 시 각도 하이라이트
+        function highlightAngleOnSkeleton(index, angleType, angleName) {
+            // 테이블 하이라이트
+            const table = document.getElementById(`angleTable-${index}`);
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach(row => row.classList.remove('highlighted'));
+            
+            const clickedRow = table.querySelector(`tr[data-angle-type="${angleType}"][data-angle-name="${angleName}"]`);
+            if (clickedRow) {
+                clickedRow.classList.add('highlighted');
+            }
+            
+            // 스켈레톤 캔버스 다시 그리기 (해당 각도 강조)
+            const result = {
+                originalImage: document.querySelector(`#result-${index} .result-image`).src,
+                landmarks: window[`resultLandmarks_${index}`],
+                angles: window[`resultAngles_${index}`]
+            };
+            
+            drawSkeletonCanvas(index, result, { type: angleType, name: angleName });
+        }
+
+        // 구간 분석 결과 표시
+        function displayIntervalResults(frameData) {
+            const container = document.getElementById('resultsContainer');
+            container.innerHTML = `<h3>📊 구간 분석 결과 (${intervalStart.toFixed(2)}초 ~ ${intervalEnd.toFixed(2)}초)</h3>`;
+            
+            // 안내 메시지
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'alert alert-info';
+            infoDiv.innerHTML = `
+                <strong>구간 분석 정보:</strong><br>
+                • 분석 구간: ${intervalStart.toFixed(2)}초 ~ ${intervalEnd.toFixed(2)}초 (총 ${(intervalEnd - intervalStart).toFixed(2)}초)<br>
+                • 샘플링: 0.1초 간격<br>
+                • 분석 프레임: ${frameData.length}개
+            `;
+            container.appendChild(infoDiv);
+            
+            // 구간 영상 생성
+            displayIntervalVideos(frameData);
+            
+            // 궤적 그래프
+            displayTrajectoryGraph(frameData);
+            
+            // 각도 변화 그래프
+            displayAngleGraph(frameData);
+            
+            // 스트로모션 이미지 생성
+            generateIntervalStroboscopeImages(frameData);
+        }
+
+        // 구간 영상 표시
+        function displayIntervalVideos(frameData) {
+            const videoDiv = document.createElement('div');
+            videoDiv.className = 'result-card';
+            videoDiv.innerHTML = `
+                <h3>🎬 구간 영상</h3>
+                <p class="info-text">아래 표에서 프레임을 클릭하면 해당 시점의 영상을 확인할 수 있습니다</p>
+                <div class="image-comparison" style="margin-bottom: 20px;">
+                    <div class="image-box">
+                        <h5>원본 + 스켈레톤</h5>
+                        <canvas id="intervalOverlayCanvas" class="result-canvas"></canvas>
+                        <p id="intervalOverlayTime" style="margin-top: 8px; font-weight: bold; color: #667eea;"></p>
+                    </div>
+                    <div class="image-box">
+                        <h5>스켈레톤 + 각도 + 궤적</h5>
+                        <canvas id="intervalSkeletonCanvas" class="result-canvas"></canvas>
+                        <p id="intervalSkeletonTime" style="margin-top: 8px; font-weight: bold; color: #667eea;"></p>
+                    </div>
+                </div>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table class="angles-table" id="intervalFrameTable">
+                        <thead>
+                            <tr>
+                                <th>프레임</th>
+                                <th>시간 (초)</th>
+                                <th>상태</th>
+                            </tr>
+                        </thead>
+                        <tbody id="intervalFrameTableBody"></tbody>
+                    </table>
+                </div>
+            `;
+            document.getElementById('resultsContainer').appendChild(videoDiv);
+            
+            // 프레임 테이블 채우기
+            const tbody = document.getElementById('intervalFrameTableBody');
+            frameData.forEach((frame, idx) => {
+                const row = document.createElement('tr');
+                row.style.cursor = 'pointer';
+                row.innerHTML = `
+                    <td>${idx + 1}</td>
+                    <td>${frame.time.toFixed(2)}</td>
+                    <td>${frame.landmarks ? '✓ 감지됨' : '✗ 미감지'}</td>
+                `;
+                row.onclick = () => showIntervalFrame(frame, frameData, idx);
+                tbody.appendChild(row);
+            });
+            
+            // 첫 프레임 자동 표시
+            if (frameData.length > 0) {
+                showIntervalFrame(frameData[0], frameData, 0);
+            }
+        }
+
+        // 구간 특정 프레임 표시
+        async function showIntervalFrame(frame, allFrames, frameIndex) {
+            // 테이블 하이라이트
+            const rows = document.querySelectorAll('#intervalFrameTableBody tr');
+            rows.forEach(r => r.classList.remove('highlighted'));
+            rows[frameIndex].classList.add('highlighted');
+            
+            // 시간 표시
+            document.getElementById('intervalOverlayTime').textContent = `시간: ${frame.time.toFixed(2)}초`;
+            document.getElementById('intervalSkeletonTime').textContent = `시간: ${frame.time.toFixed(2)}초`;
+            
+            if (!frame.landmarks) {
+                // 포즈 미감지
+                const overlayCanvas = document.getElementById('intervalOverlayCanvas');
+                const skeletonCanvas = document.getElementById('intervalSkeletonCanvas');
+                
+                [overlayCanvas, skeletonCanvas].forEach(canvas => {
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#F0F0F0';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#999';
+                    ctx.font = '20px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('포즈 미감지', canvas.width / 2, canvas.height / 2);
+                });
+                return;
+            }
+            
+            // 원본 + 스켈레톤
+            drawIntervalOverlay(frame);
+            
+            // 스켈레톤 + 각도 + 궤적
+            drawIntervalSkeleton(frame, allFrames, frameIndex);
+        }
+
+        // 구간 오버레이 그리기
+        function drawIntervalOverlay(frame) {
+            const canvas = document.getElementById('intervalOverlayCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // 비디오에서 프레임 추출
+            videoElement.currentTime = frame.time;
+            videoElement.onseeked = () => {
+                canvas.width = videoElement.videoWidth;
+                canvas.height = videoElement.videoHeight;
+                
+                ctx.drawImage(videoElement, 0, 0);
+                
+                if (frame.landmarks) {
+                    drawConnectors(ctx, frame.landmarks, POSE_CONNECTIONS, 
+                        {color: '#00CED1', lineWidth: 5});
+                    drawLandmarks(ctx, frame.landmarks, 
+                        {color: '#FF1493', lineWidth: 2, radius: 8});
+                }
+            };
+        }
+
+        // 구간 스켈레톤 + 각도 + 궤적 그리기
+        function drawIntervalSkeleton(currentFrame, allFrames, currentIndex) {
+            const canvas = document.getElementById('intervalSkeletonCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+            
+            // 흰 배경
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            if (!currentFrame.landmarks) return;
+            
+            // 1. 과거 궤적 그리기 (흐릿하게)
+            const select = document.getElementById('keypointSelect');
+            const selectedIndices = Array.from(select.selectedOptions).map(opt => parseInt(opt.value));
+            const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFA500', '#800080', 
+                           '#FF1493', '#00CED1', '#FFD700', '#8B4513', '#4B0082'];
+            
+            selectedIndices.forEach((kpIndex, colorIdx) => {
+                ctx.strokeStyle = colors[colorIdx % colors.length] + '66'; // 40% 투명도
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                
+                let firstPoint = true;
+                allFrames.slice(0, currentIndex + 1).forEach(frame => {
+                    if (frame.landmarks && frame.landmarks[kpIndex]) {
+                        const x = frame.landmarks[kpIndex].x * canvas.width;
+                        const y = frame.landmarks[kpIndex].y * canvas.height;
+                        
+                        if (firstPoint) {
+                            ctx.moveTo(x, y);
+                            firstPoint = false;
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    }
+                });
+                ctx.stroke();
+                
+                // 현재 위치 점 강조
+                if (currentFrame.landmarks[kpIndex]) {
+                    ctx.fillStyle = colors[colorIdx % colors.length];
+                    ctx.beginPath();
+                    ctx.arc(
+                        currentFrame.landmarks[kpIndex].x * canvas.width,
+                        currentFrame.landmarks[kpIndex].y * canvas.height,
+                        8, 0, 2 * Math.PI
+                    );
+                    ctx.fill();
+                }
+            });
+            
+            // 2. 현재 스켈레톤 그리기 (선명한 색상)
+            drawConnectors(ctx, currentFrame.landmarks, POSE_CONNECTIONS, 
+                {color: '#00CED1', lineWidth: 5});
+            drawLandmarks(ctx, currentFrame.landmarks, 
+                {color: '#FF1493', lineWidth: 2, radius: 8});
+            
+            // 3. 각도 호 그리기
+            if (currentFrame.angles) {
+                drawAngleArcs(ctx, currentFrame.landmarks, currentFrame.angles, 
+                    canvas.width, canvas.height, null);
+            }
+        }
+
+        // 궤적 그래프
+        function displayTrajectoryGraph(frameData) {
+            const graphDiv = document.createElement('div');
+            graphDiv.className = 'graph-container';
+            graphDiv.innerHTML = '<h4>📈 관절점 궤적 (선택된 관절점)</h4><canvas id="trajectoryChart"></canvas>';
+            document.getElementById('resultsContainer').appendChild(graphDiv);
+            
+            const canvas = document.getElementById('trajectoryChart');
+            const ctx = canvas.getContext('2d');
+            
+            // 선택된 관절점 가져오기
+            const select = document.getElementById('keypointSelect');
+            const selectedOptions = Array.from(select.selectedOptions);
+            
+            if (selectedOptions.length === 0) {
+                ctx.font = '16px Arial';
+                ctx.fillStyle = '#999';
+                ctx.textAlign = 'center';
+                ctx.fillText('관절점을 선택해주세요', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+            
+            const keypointNames = {
+                '0': '코',
+                '11': '좌_어깨',
+                '12': '우_어깨',
+                '13': '좌_팔꿈치',
+                '14': '우_팔꿈치',
+                '15': '좌_손목',
+                '16': '우_손목',
+                '23': '좌_엉덩이',
+                '24': '우_엉덩이',
+                '25': '좌_무릎',
+                '26': '우_무릎',
+                '27': '좌_발목',
+                '28': '우_발목'
+            };
+            
+            const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFA500', '#800080', 
+                           '#FF1493', '#00CED1', '#FFD700', '#8B4513', '#4B0082',
+                           '#DC143C', '#00FF7F', '#FF4500'];
+            
+            const datasets = [];
+            
+            selectedOptions.forEach((option, idx) => {
+                const index = parseInt(option.value);
+                const name = keypointNames[option.value] || `Point ${index}`;
+                
+                const xData = [];
+                const yData = [];
+                
+                frameData.forEach(frame => {
+                    if (frame.landmarks && frame.landmarks[index]) {
+                        xData.push(frame.landmarks[index].x);
+                        yData.push(1 - frame.landmarks[index].y); // Y축 뒤집기
+                    }
+                });
+                
+                if (xData.length > 0) {
+                    datasets.push({
+                        label: name,
+                        data: xData.map((x, i) => ({x, y: yData[i]})),
+                        backgroundColor: colors[idx % colors.length],
+                        borderColor: colors[idx % colors.length],
+                        showLine: true,
+                        tension: 0.3
+                    });
+                }
+            });
+            
+            new Chart(ctx, {
+                type: 'scatter',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        x: { 
+                            title: { display: true, text: 'X 좌표 (좌우)' },
+                            min: 0,
+                            max: 1
+                        },
+                        y: { 
+                            title: { display: true, text: 'Y 좌표 (상하)' },
+                            min: 0,
+                            max: 1
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // 각도 변화 그래프
+        function displayAngleGraph(frameData) {
+            const graphDiv = document.createElement('div');
+            graphDiv.className = 'graph-container';
+            graphDiv.innerHTML = '<h4>📉 각도 변화</h4><canvas id="angleChart"></canvas>';
+            document.getElementById('resultsContainer').appendChild(graphDiv);
+            
+            const canvas = document.getElementById('angleChart');
+            const ctx = canvas.getContext('2d');
+            
+            const times = frameData.map(f => f.time.toFixed(2));
+            
+            const datasets = [];
+            const angleNames = ['좌_팔꿈치', '우_팔꿈치', '좌_무릎', '우_무릎'];
+            const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFA500'];
+            
+            angleNames.forEach((name, index) => {
+                const angleData = frameData.map(f => 
+                    f.angles?.relative?.[name] || null
+                );
+                
+                datasets.push({
+                    label: name,
+                    data: angleData,
+                    borderColor: colors[index],
+                    backgroundColor: colors[index] + '33',
+                    fill: false,
+                    tension: 0.4
+                });
+            });
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: times,
+                    datasets
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { title: { display: true, text: '시간 (초)' } },
+                        y: { title: { display: true, text: '각도 (°)' } }
+                    }
+                }
             });
         }
 
@@ -621,66 +2567,22 @@
             fill.textContent = Math.round(percent) + '% - ' + message;
         }
 
-        // 결과 표시
-        function displayResults(results) {
-            const container = document.getElementById('resultsContainer');
-            const section = document.getElementById('resultsSection');
-            
-            container.innerHTML = '';
-            
-            results.forEach((result, index) => {
-                const card = document.createElement('div');
-                card.className = 'result-card';
-                
-                let html = `
-                    <h3>시점 ${index + 1}: ${result.time.toFixed(2)}초</h3>
-                    <img src="${result.image}" class="result-image" alt="분석 결과">
-                `;
-                
-                if (result.detected && result.angles) {
-                    html += `
-                        <table class="angles-table">
-                            <tr><th>항목</th><th>각도 (°)</th></tr>
-                    `;
-                    
-                    for (let [name, value] of Object.entries(result.angles.absolute)) {
-                        html += `<tr><td>절대_${name}</td><td>${value.toFixed(2)}</td></tr>`;
-                    }
-                    for (let [name, value] of Object.entries(result.angles.relative)) {
-                        html += `<tr><td>관절_${name}</td><td>${value.toFixed(2)}</td></tr>`;
-                    }
-                    
-                    html += `</table>`;
-                } else {
-                    html += `<p style="color: #dc3545;">⚠️ 포즈를 감지하지 못했습니다.</p>`;
-                }
-                
-                card.innerHTML = html;
-                container.appendChild(card);
-            });
-            
-            section.classList.add('active');
-            section.scrollIntoView({ behavior: 'smooth' });
-        }
-
         // 알림 표시
         function showNotification(type, message) {
             const notification = document.createElement('div');
             notification.className = `alert alert-${type} notification`;
             notification.textContent = message;
-            
             document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.remove();
-            }, 3000);
+            setTimeout(() => notification.remove(), 3000);
         }
 
-        // 키보드 단축키 (Space: 시점 태그)
+        // 키보드 단축키
         document.addEventListener('keydown', (e) => {
             if (e.code === 'Space' && videoElement.src && e.target.tagName !== 'INPUT') {
                 e.preventDefault();
-                tagCurrentTime();
+                if (currentMode === 'timepoint') {
+                    tagTimepoint();
+                }
             }
         });
     </script>
