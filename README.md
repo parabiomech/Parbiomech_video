@@ -2,12 +2,6 @@
 
 **MediaPipe 기반 스키 동작 분석 시스템**
 
-## 🌐 라이브 데모
-
-**👉 [https://parabiomech.github.io/Parbiomech_video/](https://parabiomech.github.io/Parbiomech_video/)**
-
-브라우저에서 바로 사용 가능 - 설치 불필요!
-
 ## ✨ 주요 기능
 
 ### 📊 3가지 분석 모드
